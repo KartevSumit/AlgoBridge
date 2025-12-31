@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "CF Bridge",
+  "version": "0.1.0",
+  "description": "Send Codeforces problems to VS Code",
+  "permissions": ["activeTab"],
+  "host_permissions": ["http://localhost/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://codeforces.com/*"],
+      "js": ["content.js"]
+    }
+  ]
+}

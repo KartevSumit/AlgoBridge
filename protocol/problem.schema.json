@@ -1,0 +1,15 @@
+{
+  "platform": "codeforces",
+  "contestId": "string",
+  "index": "string",
+  "name": "string",
+  "statement": "string",
+  "samples": [
+    {
+      "input": "string",
+      "output": "string"
+    }
+  ],
+  "timeLimit": "string",
+  "memoryLimit": "string"
+}
