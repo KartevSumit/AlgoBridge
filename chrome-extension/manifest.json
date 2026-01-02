@@ -1,16 +1,19 @@
 {
   "manifest_version": 3,
-  "name": "CF Bridge",
-  "version": "0.1.0",
+  "name": "CF Viewer Bridge",
+  "version": "0.1",
   "description": "Send Codeforces problems to VS Code",
-  "permissions": ["activeTab"],
-  "host_permissions": ["http://localhost/*"],
+  "permissions": ["scripting"],
+  "host_permissions": [
+    "https://codeforces.com/*",
+    "http://localhost:27123/*"
+  ],
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [
     {
-      "matches": ["https://codeforces.com/*"],
+      "matches": ["https://codeforces.com/contest/*/problem/*"],
       "js": ["content.js"]
     }
   ]
