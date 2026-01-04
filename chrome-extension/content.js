@@ -1,55 +1,56 @@
-(function () {
-  function extractProblem() {
-    const titleEl = document.querySelector('.problem-statement .title');
-    const statementEl = document.querySelector('.problem-statement');
+if (!window.__CF_VIEWER_INITIALIZED__) {
+  window.__CF_VIEWER_INITIALIZED__ = true;
 
-    if (!titleEl || !statementEl) return null;
+  (function () {
+    function cleanStatement(root) {
+      root
+        .querySelectorAll('.time-limit, .memory-limit, .input-file, .output-file')
+        .forEach((el) => el.remove());
 
-    const name = titleEl.textContent.trim();
-    const url = window.location.href;
+      root.querySelectorAll('math').forEach((el) => el.remove());
+      root.querySelectorAll('nobr[aria-hidden="true"]').forEach((el) => el.remove());
 
-    // Clone statement to avoid modifying page
-    const statementClone = statementEl.cloneNode(true);
+      root.querySelectorAll('script[type="math/tex"]').forEach((script) => {
+        const tex = script.textContent || '';
+        const span = document.createElement('span');
+        span.textContent = `\\(${tex}\\)`;
+        script.replaceWith(span);
+      });
 
-    // Remove title from body (we show it separately)
-    const titleNode = statementClone.querySelector('.title');
-    if (titleNode) titleNode.remove();
-
-    const statementHtml = statementClone.innerHTML;
-
-    // Extract samples
-    const samples = [];
-    const inputBlocks = statementEl.querySelectorAll('.sample-test .input pre');
-    const outputBlocks = statementEl.querySelectorAll('.sample-test .output pre');
-
-    for (let i = 0; i < Math.min(inputBlocks.length, outputBlocks.length); i++) {
-      samples.push({
-        input: inputBlocks[i].innerText.trim() + '\n',
-        output: outputBlocks[i].innerText.trim() + '\n',
+      root.querySelectorAll('*').forEach((el) => {
+        if (el.textContent?.trim() === 'Copy') el.remove();
       });
     }
 
-    return {
-      name,
-      url,
-      statementHtml,
-      samples,
-    };
-  }
+    function extractProblem() {
+      const titleEl = document.querySelector('.problem-statement .title');
+      const statementEl = document.querySelector('.problem-statement');
+      if (!titleEl || !statementEl) return null;
 
-  // Add keyboard shortcut: Ctrl + Shift + S
-  document.addEventListener('keydown', (e) => {
-    if (e.ctrlKey && e.shiftKey && e.code === 'KeyS') {
-      const data = extractProblem();
-      if (!data) {
-        alert('Could not extract problem');
-        return;
-      }
+      const name = titleEl.textContent.trim();
+      const url = location.href;
+
+      const clone = statementEl.cloneNode(true);
+      clone.querySelector('.title')?.remove();
+      cleanStatement(clone);
+
+      return {
+        name,
+        url,
+        statementHtml: clone.innerHTML,
+      };
+    }
+
+    chrome.runtime.onMessage.addListener((msg) => {
+      if (msg.type !== 'EXTRACT_AND_SEND') return;
+
+      const payload = extractProblem();
+      if (!payload) return;
 
       chrome.runtime.sendMessage({
         type: 'SEND_PROBLEM',
-        payload: data,
+        payload,
       });
-    }
-  });
-})();
+    });
+  })();
+}
