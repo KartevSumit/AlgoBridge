@@ -1,43 +1,39 @@
 {
   "name": "cf-bridge",
   "displayName": "CF-Bridge",
-  "description": "",
+  "description": "Codeforces Bridge for VS Code",
   "version": "0.0.1",
   "engines": {
-    "vscode": "^1.107.0"
+    "vscode": "^1.75.0"
   },
-  "categories": [
-    "Other"
-  ],
-  "activationEvents": [
-    "onStartupFinished"
-  ],
   "main": "./out/extension.js",
+  "activationEvents": [
+    "onLanguage:cpp",
+    "onView:cfBridge.problemView"
+  ],
   "contributes": {
-    "commands": [
-      {
-        "command": "cf-bridge.helloWorld",
-        "title": "Hello World"
-      }
-    ]
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "cfBridgeContainer",
+          "title": "CF Bridge",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "cfBridgeContainer": [
+        {
+          "id": "cfBridge.problemView",
+          "name": "Problem Statement",
+          "type": "webview"
+        }
+      ]
+    }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
-    "pretest": "npm run compile && npm run lint",
-    "lint": "eslint src",
-    "test": "vscode-test"
-  },
-  "devDependencies": {
-    "@types/mocha": "^10.0.10",
-    "@types/node": "22.x",
-    "@types/vscode": "^1.107.0",
-    "@vscode/test-cli": "^0.0.12",
-    "@vscode/test-electron": "^2.5.2",
-    "eslint": "^9.39.1",
-    "typescript": "^5.9.3",
-    "typescript-eslint": "^8.48.1"
+    "watch": "tsc -watch -p ./"
   },
   "dependencies": {
     "mathjax-full": "^3.2.1"
