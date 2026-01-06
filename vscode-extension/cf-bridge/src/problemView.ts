@@ -94,36 +94,6 @@ export class ProblemViewProvider implements vscode.WebviewViewProvider {
   };
 </script>
 
-<script>
-  document.addEventListener('DOMContentLoaded', function() {
-    function normalizePre(pre) {
-      return Array.from(pre.children)
-        .map(div => div.textContent)
-        .join('\n')
-        .trim();
-    }
-
-    document.querySelectorAll('.sample-test .input, .sample-test .output')
-      .forEach(block => {
-        const title = block.querySelector('.title');
-        const pre = block.querySelector('pre');
-        if (!title || !pre) return;
-
-        const btn = document.createElement('button');
-        btn.className = 'copy-btn';
-        btn.textContent = 'Copy';
-
-        btn.onclick = () => {
-          navigator.clipboard.writeText(normalizePre(pre));
-          btn.textContent = 'Copied';
-          setTimeout(() => btn.textContent = 'Copy', 800);
-        };
-
-        title.appendChild(btn);
-      });
-  });
-</script>
-
 <script defer src="${mathjaxSrc}"></script>
 
 <style>

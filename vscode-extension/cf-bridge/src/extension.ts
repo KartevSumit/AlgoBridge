@@ -44,13 +44,10 @@ export function activate(context: vscode.ExtensionContext) {
 
         const base = problemNameToFilePrefix(problem.name);
 
-        // 🔑 Ensure sidebar + view are visible (lazy-loading fix)
         vscode.commands.executeCommand('workbench.view.extension.cfBridgeContainer');
 
-        // 1️⃣ Try to find an existing file
         let file = await findProblemFile(base);
 
-        // 2️⃣ Create file if missing
         if (!file) {
           const choice = await vscode.window.showInformationMessage(
             `No file found for "${base}". Create ${base}.cpp?`,
@@ -63,8 +60,13 @@ export function activate(context: vscode.ExtensionContext) {
           }
         }
 
-        // 3️⃣ Attach + show
         if (file) {
+          const doc = await vscode.workspace.openTextDocument(file);
+          await vscode.window.showTextDocument(doc, {
+            preview: false,
+            preserveFocus: false,
+          });
+
           store.attachToFile(file.fsPath, problem);
           problemView.showProblem(problem);
         } else {

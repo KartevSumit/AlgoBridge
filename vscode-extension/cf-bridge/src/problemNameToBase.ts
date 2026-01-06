@@ -1,13 +1,16 @@
-export function problemNameToBase(name: string): string {
-  return name
-    .replace(/^[A-Z]\.\s*/, '')
-    .replace(/[^\w\s]/g, '')
-    .trim()
-    .replace(/\s+/g, '_');
-}
-
 export function problemNameToFilePrefix(name: string): string {
-  const m = name.match(/^([A-Z])\.\s*(.+)$/);
-  if (!m) return problemNameToBase(name);
-  return `${m[1]}_${problemNameToBase(m[2])}`;
+
+  const letterMatch = name.match(/\b([A-Z])\b/);
+  const letter = letterMatch ? letterMatch[1] : '';
+
+  const base = name
+    .replace(/^[A-Z]\.\s*/, '')
+    .replace(/^\d+[A-Z]\s*-\s*/, '')
+    .replace(/[^a-zA-Z0-9]+/g, ' ')
+    .trim()
+    .split(' ')
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join('_');
+
+  return letter ? `${letter}_${base}` : base;
 }
