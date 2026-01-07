@@ -7,19 +7,32 @@ if (!window.__CF_VIEWER_INITIALIZED__) {
         .querySelectorAll('.time-limit, .memory-limit, .input-file, .output-file')
         .forEach((el) => el.remove());
 
-      root.querySelectorAll('math').forEach((el) => el.remove());
       root.querySelectorAll('nobr[aria-hidden="true"]').forEach((el) => el.remove());
-
-      root.querySelectorAll('script[type="math/tex"]').forEach((script) => {
-        const tex = script.textContent || '';
-        const span = document.createElement('span');
-        span.textContent = `\\(${tex}\\)`;
-        script.replaceWith(span);
-      });
 
       root.querySelectorAll('*').forEach((el) => {
         if (el.textContent?.trim() === 'Copy') el.remove();
       });
+    }
+
+    function extractLatex(root) {
+      const scripts = root.querySelectorAll(
+        'script[type="math/tex"], script[type="math/tex; mode=display"]'
+      );
+
+      for (const script of scripts) {
+        const isBlock = script.type.includes('display');
+        const tex = script.textContent.trim();
+
+        const el = document.createElement(isBlock ? 'div' : 'span');
+        el.className = 'latex';
+        el.textContent = isBlock ? `$$${tex}$$` : `$${tex}$`;
+
+        script.replaceWith(el);
+      }
+
+      root
+        .querySelectorAll('.MathJax, .MathJax_Display, .MJX_Assistive_MathML')
+        .forEach((e) => e.remove());
     }
 
     function extractProblem() {
@@ -33,6 +46,12 @@ if (!window.__CF_VIEWER_INITIALIZED__) {
       const clone = statementEl.cloneNode(true);
       clone.querySelector('.title')?.remove();
       cleanStatement(clone);
+
+      if (clone instanceof Element) {
+        extractLatex(clone);
+      }
+
+      console.log('STATEMENT HTML:', statementEl.innerHTML);
 
       return {
         name,

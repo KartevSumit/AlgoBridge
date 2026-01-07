@@ -9,6 +9,7 @@ export interface ProblemPayload {
 export class ProblemViewProvider implements vscode.WebviewViewProvider {
   private view?: vscode.WebviewView;
   private currentProblem: ProblemPayload | null = null;
+  private htmlCache = new Map<string, string>();
 
   constructor(private context: vscode.ExtensionContext) {}
 
@@ -64,17 +65,72 @@ export class ProblemViewProvider implements vscode.WebviewViewProvider {
   showProblem(problem: ProblemPayload) {
     this.currentProblem = problem;
     this.focus();
+
     if (this.view) {
+      this.view.webview.html = this.loadingHtml();
+
       this.render();
     }
+  }
+
+  private loadingHtml(): string {
+    return `
+<!DOCTYPE html>
+<html>
+<body style="
+  background: var(--vscode-editor-background);
+  color: var(--vscode-descriptionForeground);
+  font-family: var(--vscode-font-family);
+  padding: 12px;
+">
+  <div class="skeleton title"></div>
+  <div class="skeleton line"></div>
+  <div class="skeleton line"></div>
+  <div class="skeleton line short"></div>
+
+  <style>
+    .skeleton {
+      background: linear-gradient(
+        90deg,
+        var(--vscode-editor-background),
+        var(--vscode-editorGroup-border),
+        var(--vscode-editor-background)
+      );
+      background-size: 200% 100%;
+      animation: shimmer 1.2s infinite;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      height: 14px;
+    }
+    .skeleton.title { height: 20px; width: 60%; }
+    .skeleton.short { width: 40%; }
+
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+  </style>
+</body>
+</html>
+`;
   }
 
   private render() {
     if (!this.view || !this.currentProblem) return;
     const mathjaxUri = this.view.webview.asWebviewUri(
-      vscode.Uri.joinPath(this.context.extensionUri, 'media', 'mathjax', 'tex-svg.js')
+      vscode.Uri.joinPath(this.context.extensionUri, 'media', 'mathjax', 'tex-chtml.js')
     );
-    this.view.webview.html = this.buildHtml(this.currentProblem, mathjaxUri.toString());
+    const key = this.currentProblem.url;
+    const cached = this.htmlCache.get(key);
+    if (cached) {
+      this.view.webview.html = cached;
+      return;
+    }
+    const html = this.buildHtml(this.currentProblem, mathjaxUri.toString());
+
+    this.htmlCache.set(key, html);
+
+    this.view.webview.html = html;
   }
 
   private buildHtml(problem: ProblemPayload, mathjaxSrc: string): string {
@@ -116,7 +172,7 @@ body {
   background: var(--bg);
   color: var(--fg);
   font-family: var(--vscode-font-family);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.6;
 }
 
@@ -127,7 +183,7 @@ body {
   z-index: 10;
   height: 36px;
   background: var(--bg);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
   padding: 6px 10px;
   box-sizing: border-box;
   display: flex;
@@ -136,7 +192,7 @@ body {
 
 .problemName {
   font-weight: 600;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--link);
   text-decoration: none;
   white-space: nowrap;
@@ -152,7 +208,7 @@ body {
 .section-title {
   margin: 14px 0 6px;
   padding-bottom: 4px;
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--vscode-editor-foreground);
   border-bottom: 1px solid var(--border);
@@ -167,14 +223,29 @@ main {
   margin: 0 auto;
 }
 
+main {
+  animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+
 /* ---------- Text ---------- */
 p {
-  margin: 6px 0;
+  margin: 4px 0;
 }
 
 ul, ol {
-  padding-left: 18px;
-  margin: 6px 0;
+  margin: 4px 0;
 }
 
 li {
@@ -185,15 +256,24 @@ b, strong {
   font-weight: 600;
 }
 
+a {
+  transition: color 0.15s ease;
+}
+
+
 /* ---------- Code ---------- */
 pre {
   background: var(--code-bg);
-  border: 1px solid var(--border);
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
   padding: 8px 10px;
   border-radius: 4px;
   overflow-x: auto;
   font-family: var(--vscode-editor-font-family);
   font-size: 12px;
+}
+
+pre:hover {
+  background: color-mix(in srgb, var(--code-bg) 85%, transparent);
 }
 
 code {
@@ -203,139 +283,152 @@ code {
   font-family: var(--vscode-editor-font-family);
 }
 
-/* ---------- Math ---------- */
-mjx-container {
-  color: var(--fg);
-}
-
-mjx-container[jax="SVG"][display="true"] {
-  margin: 8px 0;
-}
-
-/* ---------- Sample Tests ---------- */
-
-.sample-tests {
-  margin-top: 18px;
-}
-
-.sample-test {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-top: 10px;
-}
-
-/* Stack on narrow panels */
-@media (max-width: 700px) {
-  .sample-test {
-    grid-template-columns: 1fr;
-  }
-}
-
-.sample-test .input,
-.sample-test .output {
+.latex {
+  font-family: var(--vscode-editor-font-family);
   background: var(--code-bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.sample-test .title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 8px;
-  font-size: 12px;
-  font-weight: 600;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg);
-}
-
-.sample-test pre {
-  margin: 0;
-  padding: 8px 10px;
-  background: transparent;
-  border: none;
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-/* Remove CF line wrappers */
-.sample-test pre div {
-  display: block;
-}
-
-/* ---------- Sample Tests ---------- */
-
-.sample-tests {
-  margin-top: 18px;
-}
-
-.sample-test {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-top: 10px;
-}
-
-/* Stack on narrow panels */
-@media (max-width: 700px) {
-  .sample-test {
-    grid-template-columns: 1fr;
-  }
-}
-
-.sample-test .input,
-.sample-test .output {
-  background: var(--code-bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.sample-test .title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 8px;
-  font-size: 12px;
-  font-weight: 600;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg);
-}
-
-.sample-test pre {
-  margin: 0;
-  padding: 8px 10px;
-  background: transparent;
-  border: none;
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-/* Remove CF line wrappers */
-.sample-test pre div {
-  display: block;
-}
-
-/* ---------- Copy Button ---------- */
-.copy-btn {
-  background: var(--vscode-button-background);
-  color: var(--vscode-button-foreground);
-  border: none;
-  padding: 3px 8px;
-  font-size: 11px;
+  padding: 2px 4px;
   border-radius: 3px;
-  cursor: pointer;
-  font-family: var(--vscode-font-family);
 }
 
-.copy-btn:hover {
-  background: var(--vscode-button-hoverBackground);
+/* ---------- LaTeX ---------- */
+
+.latex {
+  font-size: 1.1em;
+  font-family: var(--vscode-editor-font-family);
+  white-space: nowrap;
 }
 
-.copy-btn:active {
-  opacity: 0.8;
+span.latex {
+  font-size: 1.1em;
+  font-family: var(--vscode-editor-font-family);
+  background: color-mix(in srgb, var(--code-bg) 85%, transparent);
+  padding: 0 4px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+div.latex {
+  font-size: 1.2em;
+  font-family: var(--vscode-editor-font-family);
+  text-align: center;
+  margin: 14px 0;
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--code-bg) 90%, transparent);
+  border-radius: 6px;
+  line-height: 1.4;
+}
+
+/* ---------- Sample Tests ---------- */
+
+.sample-tests {
+  margin-top: 18px;
+}
+
+.sample-test {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+/* Stack on narrow panels */
+@media (max-width: 700px) {
+  .sample-test {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sample-test .input,
+.sample-test .output {
+  background: var(--code-bg);
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.sample-test .input {
+  background: color-mix(in srgb, var(--code-bg) 92%, transparent);
+}
+
+.sample-test .output {
+  background: color-mix(in srgb, var(--code-bg) 88%, transparent);
+}
+
+.sample-test .title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.sample-test pre {
+  margin: 0;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+/* Remove CF line wrappers */
+.sample-test pre div {
+  display: block;
+}
+
+/* ---------- Sample Tests ---------- */
+
+.sample-tests {
+  margin-top: 18px;
+}
+
+.sample-test {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+/* Stack on narrow panels */
+@media (max-width: 700px) {
+  .sample-test {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sample-test .input,
+.sample-test .output {
+  background: var(--code-bg);
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.sample-test .title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  font-size: 14px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.sample-test pre {
+  margin: 0;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.sample-test pre div {
+  display: block;
 }
 
 </style>

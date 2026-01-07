@@ -9,7 +9,6 @@ export function problemNameToFilePrefix(name: string): string {
     .replace(/[^a-zA-Z0-9]+/g, ' ')
     .trim()
     .split(' ')
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
     .join('_');
 
   return letter ? `${letter}_${base}` : base;
