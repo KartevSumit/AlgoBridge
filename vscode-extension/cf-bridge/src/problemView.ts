@@ -117,28 +117,58 @@ export class ProblemViewProvider implements vscode.WebviewViewProvider {
 
   private render() {
     if (!this.view || !this.currentProblem) return;
-    const mathjaxUri = this.view.webview.asWebviewUri(
-      vscode.Uri.joinPath(this.context.extensionUri, 'media', 'mathjax', 'tex-chtml.js')
+
+    const webview = this.view.webview;
+
+    const katexCss = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.context.extensionUri, 'media', 'katex', 'katex.min.css')
     );
+
+    const katexJs = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.context.extensionUri, 'media', 'katex', 'katex.min.js')
+    );
+
+    const katexAutoRenderJs = webview.asWebviewUri(
+      vscode.Uri.joinPath(
+        this.context.extensionUri,
+        'media',
+        'katex',
+        'contrib',
+        'auto-render.min.js'
+      )
+    );
+
     const key = this.currentProblem.url;
     const cached = this.htmlCache.get(key);
     if (cached) {
-      this.view.webview.html = cached;
+      webview.html = cached;
       return;
     }
-    const html = this.buildHtml(this.currentProblem, mathjaxUri.toString());
+
+    const html = this.buildHtml(this.currentProblem, {
+      katexCss: katexCss.toString(),
+      katexJs: katexJs.toString(),
+      katexAutoRenderJs: katexAutoRenderJs.toString(),
+    });
 
     this.htmlCache.set(key, html);
-
-    this.view.webview.html = html;
+    webview.html = html;
   }
 
-  private buildHtml(problem: ProblemPayload, mathjaxSrc: string): string {
+  buildHtml(
+    problem: ProblemPayload,
+    assets: {
+      katexCss: string;
+      katexJs: string;
+      katexAutoRenderJs: string;
+    }
+  ): string {
     return `
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
+<link rel="stylesheet" href="${assets.katexCss}">
 
 <script>
   window.MathJax = {
@@ -150,7 +180,20 @@ export class ProblemViewProvider implements vscode.WebviewViewProvider {
   };
 </script>
 
-<script defer src="${mathjaxSrc}"></script>
+<script src="${assets.katexJs}"></script>
+<script src="${assets.katexAutoRenderJs}"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    renderMathInElement(document.body, {
+      delimiters: [
+        { left: "$$", right: "$$", display: true },
+        { left: "$", right: "$", display: false }
+      ],
+      throwOnError: false
+    });
+  });
+</script>
+
 
 <style>
 /* ---------- Theme Variables ---------- */
@@ -241,19 +284,19 @@ main {
 
 /* ---------- Text ---------- */
 p {
-  margin: 4px 0;
+  margin: 10px 0px;
 }
 
 ul, ol {
-  margin: 4px 0;
+  margin: 6px 0;
 }
 
 li {
-  margin: 4px 0;
+  margin: 6px 0;
 }
 
 b, strong {
-  font-weight: 600;
+  font-weight: 700;
 }
 
 a {
@@ -283,39 +326,49 @@ code {
   font-family: var(--vscode-editor-font-family);
 }
 
-.latex {
-  font-family: var(--vscode-editor-font-family);
-  background: var(--code-bg);
-  padding: 2px 4px;
-  border-radius: 3px;
+/
+
+/* ---------- KateX ---------- */
+
+.katex {
+  font-size: 1.12em;
 }
 
-/* ---------- LaTeX ---------- */
-
-.latex {
-  font-size: 1.1em;
-  font-family: var(--vscode-editor-font-family);
-  white-space: nowrap;
+.katex-inline {
+  vertical-align: -0.1em;
 }
 
-span.latex {
-  font-size: 1.1em;
-  font-family: var(--vscode-editor-font-family);
-  background: color-mix(in srgb, var(--code-bg) 85%, transparent);
-  padding: 0 4px;
-  border-radius: 4px;
-  white-space: nowrap;
+.katex-display:hover > .katex {
+  font-size: 1.3em;
 }
 
-div.latex {
-  font-size: 1.2em;
-  font-family: var(--vscode-editor-font-family);
+.katex-display {
+  margin: 1em 0;
+  padding: 0.4em 0.6em;
+  overflow-x: auto;
+  overflow-y: visible;
   text-align: center;
-  margin: 14px 0;
-  padding: 8px 12px;
-  background: color-mix(in srgb, var(--code-bg) 90%, transparent);
+}
+
+.katex-display > .katex {
+  font-size: 1.2em;
+}
+
+.katex .mspace {
+  min-width: 0.15em;
+}
+
+.katex .op-symbol {
+  font-weight: 500;
+}
+
+.katex {
+  text-rendering: optimizeLegibility;
+}
+
+.katex-display {
+  background: color-mix(in srgb, var(--code-bg) 92%, transparent);
   border-radius: 6px;
-  line-height: 1.4;
 }
 
 /* ---------- Sample Tests ---------- */
@@ -331,7 +384,6 @@ div.latex {
   margin-top: 10px;
 }
 
-/* Stack on narrow panels */
 @media (max-width: 700px) {
   .sample-test {
     grid-template-columns: 1fr;

@@ -15,24 +15,19 @@ if (!window.__CF_VIEWER_INITIALIZED__) {
     }
 
     function extractLatex(root) {
-      const scripts = root.querySelectorAll(
-        'script[type="math/tex"], script[type="math/tex; mode=display"]'
-      );
+      root.querySelectorAll('script[type="math/tex"]').forEach((script) => {
+        const tex = script.textContent?.trim() ?? '';
+        script.replaceWith(document.createTextNode(`$${tex}$`));
+      });
 
-      for (const script of scripts) {
-        const isBlock = script.type.includes('display');
-        const tex = script.textContent.trim();
-
-        const el = document.createElement(isBlock ? 'div' : 'span');
-        el.className = 'latex';
-        el.textContent = isBlock ? `$$${tex}$$` : `$${tex}$`;
-
-        script.replaceWith(el);
-      }
+      root.querySelectorAll('script[type="math/tex; mode=display"]').forEach((script) => {
+        const tex = script.textContent?.trim() ?? '';
+        script.replaceWith(document.createTextNode(`$$${tex}$$`));
+      });
 
       root
         .querySelectorAll('.MathJax, .MathJax_Display, .MJX_Assistive_MathML')
-        .forEach((e) => e.remove());
+        .forEach((el) => el.remove());
     }
 
     function extractProblem() {
@@ -50,8 +45,6 @@ if (!window.__CF_VIEWER_INITIALIZED__) {
       if (clone instanceof Element) {
         extractLatex(clone);
       }
-
-      console.log('STATEMENT HTML:', statementEl.innerHTML);
 
       return {
         name,
