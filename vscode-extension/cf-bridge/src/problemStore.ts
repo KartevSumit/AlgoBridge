@@ -8,7 +8,7 @@ export class ProblemStore {
   private pending: ProblemPayload | null = null;
 
   constructor(private context: vscode.ExtensionContext) {
-    const saved = context.globalState.get<Record<string, ProblemPayload>>('cfBridge.store') || {};
+    const saved = context.globalState.get<Record<string, ProblemPayload>>('algoBridge.store') || {};
 
     for (const [filePath, problem] of Object.entries(saved)) {
       this.fileMap.set(filePath, problem);
@@ -61,6 +61,6 @@ export class ProblemStore {
   }
 
   private persist() {
-    this.context.globalState.update('cfBridge.store', Object.fromEntries(this.fileMap));
+    this.context.globalState.update('algoBridge.store', Object.fromEntries(this.fileMap));
   }
 }

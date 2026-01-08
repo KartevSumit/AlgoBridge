@@ -18,13 +18,13 @@ let store: ProblemStore;
 /* ---------------- Activation ---------------- */
 
 export function activate(context: vscode.ExtensionContext) {
-  console.log('CF VIEWER EXTENSION ACTIVATED');
+  console.log('ALGOBRIDGE EXTENSION ACTIVATED');
 
   store = new ProblemStore(context);
   problemView = new ProblemViewProvider(context);
 
   context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider('cfBridge.problemView', problemView)
+    vscode.window.registerWebviewViewProvider('algoBridge.problemView', problemView)
   );
 
   /* ---------- HTTP server ---------- */
@@ -44,7 +44,7 @@ export function activate(context: vscode.ExtensionContext) {
 
         const base = problemNameToFilePrefix(problem.name);
 
-        vscode.commands.executeCommand('workbench.view.extension.cfBridgeContainer');
+        vscode.commands.executeCommand('workbench.view.extension.algoBridgeContainer');
 
         let file = await findProblemFile(base);
 
@@ -83,29 +83,28 @@ export function activate(context: vscode.ExtensionContext) {
     });
   });
 
-  server.listen(27123, '127.0.0.1', () => {
-    console.log('CF VIEWER SERVER LISTENING ON 27123');
+  server.listen(27123, '127.0.0.1');
+  server.on('error', (err: any) => {
+    vscode.window.showErrorMessage(`AlgoBridge server failed: ${err.message}`);
   });
 
   /* ---------- Editor change handling ---------- */
 
-  vscode.window.onDidChangeActiveTextEditor((editor) => {
-    if (!editor) {
-      problemView.clear();
-      return;
-    }
+  context.subscriptions.push(
+    vscode.window.onDidChangeActiveTextEditor((editor) => {
+      if (!editor) {
+        problemView.clear();
+        return;
+      }
 
-    const filePath = editor.document.uri.fsPath;
-    const base = path.basename(filePath).replace(/\.\w+$/, '');
+      const filePath = editor.document.uri.fsPath;
+      const base = path.basename(filePath).replace(/\.\w+$/, '');
 
-    const problem = store.getForFile(filePath) || store.getByBaseName(base);
+      const problem = store.getForFile(filePath) || store.getByBaseName(base);
 
-    if (problem) {
-      problemView.showProblem(problem);
-    } else {
-      problemView.clear();
-    }
-  });
+      problem ? problemView.showProblem(problem) : problemView.clear();
+    })
+  );
 
   syncWithEditor(vscode.window.activeTextEditor);
 }

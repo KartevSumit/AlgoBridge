@@ -1,6 +1,6 @@
 {
-  "name": "cf-bridge",
-  "displayName": "CF-Bridge",
+  "name": "AlgoBridge",
+  "displayName": "AlgoBridge",
   "description": "Codeforces Bridge for VS Code",
   "version": "0.0.1",
   "engines": {
@@ -9,22 +9,22 @@
   "main": "./out/extension.js",
   "activationEvents": [
     "onLanguage:cpp",
-    "onView:cfBridge.problemView"
+    "onView:algoBridge.problemView"
   ],
   "contributes": {
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "cfBridgeContainer",
-          "title": "CF Bridge",
+          "id": "algoBridgeContainer",
+          "title": "AlgoBridge",
           "icon": "media/icon.svg"
         }
       ]
     },
     "views": {
-      "cfBridgeContainer": [
+      "algoBridgeContainer": [
         {
-          "id": "cfBridge.problemView",
+          "id": "algoBridge.problemView",
           "name": "Problem Statement",
           "type": "webview"
         }

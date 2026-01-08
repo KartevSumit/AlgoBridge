@@ -1,5 +1,6 @@
-if (!window.__CF_VIEWER_INITIALIZED__) {
-  window.__CF_VIEWER_INITIALIZED__ = true;
+// Guard against multiple injections on the same page
+if (!window.__ALGOBRIDGE_INITIALIZED__) {
+  window.__ALGOBRIDGE_INITIALIZED__ = true;
 
   (function () {
     function cleanStatement(root) {
@@ -14,6 +15,7 @@ if (!window.__CF_VIEWER_INITIALIZED__) {
       });
     }
 
+    // Convert MathJax script tags into raw LaTeX
     function extractLatex(root) {
       root.querySelectorAll('script[type="math/tex"]').forEach((script) => {
         const tex = script.textContent?.trim() ?? '';

@@ -12,12 +12,12 @@ chrome.action.onClicked.addListener(async (tab) => {
       files: ['content.js'],
     });
 
-    // Now safely message it
     chrome.tabs.sendMessage(tab.id, {
       type: 'EXTRACT_AND_SEND',
     });
   } catch (err) {
-    console.error(err);
+    // Script injection failures indicate CSP issues or page reload requirements
+    console.error('[AlgoBridge] Content script injection failed', err);
     alert('Failed to inject content script. Reload the page.');
   }
 });

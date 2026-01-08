@@ -10,13 +10,13 @@ export class ProblemViewProvider implements vscode.WebviewViewProvider {
   private view?: vscode.WebviewView;
   private currentProblem: ProblemPayload | null = null;
   private htmlCache = new Map<string, string>();
+  private isLoadingProblem = false;
 
   constructor(private context: vscode.ExtensionContext) {}
 
   public async focus() {
     if (!this.view) {
-      // Force VS Code to call resolveWebviewView
-      await vscode.commands.executeCommand('cfBridge.problemView.focus');
+      await vscode.commands.executeCommand('algoBridge.problemView.focus');
     } else {
       this.view.show?.(true);
     }
@@ -33,16 +33,22 @@ export class ProblemViewProvider implements vscode.WebviewViewProvider {
     padding: 12px;
   ">
   <h1>No Statement linked to this file.</h1>
+  <p>Use Web Extension to bring Statement to your code editor</p>
 </body>
 </html>
 `;
   }
 
   clear() {
+    if (this.isLoadingProblem) {
+      if (!this.view) return;
+      this.view.webview.html = this.loadingHtml();
+      return;
+    }
+
     this.currentProblem = null;
 
     if (!this.view) return;
-
     this.view.webview.html = this.emptyHtml();
   }
 
@@ -63,12 +69,13 @@ export class ProblemViewProvider implements vscode.WebviewViewProvider {
   }
 
   showProblem(problem: ProblemPayload) {
+    if (this.currentProblem?.url === problem.url) return;
+
     this.currentProblem = problem;
+    this.isLoadingProblem = true;
     this.focus();
 
     if (this.view) {
-      this.view.webview.html = this.loadingHtml();
-
       this.render();
     }
   }
@@ -142,6 +149,7 @@ export class ProblemViewProvider implements vscode.WebviewViewProvider {
     const cached = this.htmlCache.get(key);
     if (cached) {
       webview.html = cached;
+      this.isLoadingProblem = false;
       return;
     }
 
@@ -153,6 +161,7 @@ export class ProblemViewProvider implements vscode.WebviewViewProvider {
 
     this.htmlCache.set(key, html);
     webview.html = html;
+    this.isLoadingProblem = false;
   }
 
   buildHtml(
@@ -184,13 +193,22 @@ export class ProblemViewProvider implements vscode.WebviewViewProvider {
 <script src="${assets.katexAutoRenderJs}"></script>
 <script>
   document.addEventListener("DOMContentLoaded", () => {
-    renderMathInElement(document.body, {
-      delimiters: [
-        { left: "$$", right: "$$", display: true },
-        { left: "$", right: "$", display: false }
-      ],
-      throwOnError: false
-    });
+    try {
+      renderMathInElement(document.getElementById("content"), {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+          { left: "\\(", right: "\\)", display: false },
+          { left: "\\[", right: "\\]", display: true }
+        ],
+        throwOnError: false
+      });
+    } catch (e) {
+      console.error("KaTeX render failed", e);
+    }
+
+    document.getElementById("loading")?.remove();
+    document.getElementById("content").style.display = "block";
   });
 </script>
 
@@ -426,7 +444,6 @@ code {
   line-height: 1.45;
 }
 
-/* Remove CF line wrappers */
 .sample-test pre div {
   display: block;
 }
@@ -483,20 +500,55 @@ code {
   display: block;
 }
 
+/* ---------- Loading ---------- */
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--vscode-editor-background),
+    var(--vscode-editorGroup-border),
+    var(--vscode-editor-background)
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  height: 14px;
+}
+
+.skeleton.title { height: 20px; width: 60%; }
+.skeleton.short { width: 40%; }
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+
 </style>
 </head>
 
 <body>
   <header class="heading">
-  <a class="problemName" href="${problem.url}">
-    ${problem.name}
-  </a>
-</header>
+    <a class="problemName" href="${problem.url}">
+      ${problem.name}
+    </a>
+  </header>
+
+  <div id="loading">
+    <div class="skeleton title"></div>
+    <div class="skeleton line"></div>
+    <div class="skeleton line"></div>
+    <div class="skeleton line short"></div>
+  </div>
 
   <main>
-    ${problem.statementHtml}
+    <div id="content" style="display:none">
+      ${problem.statementHtml}
+    </div>
   </main>
 </body>
+
 </html>
 `;
   }
