@@ -355,7 +355,6 @@ code {
   padding: 0.4em 0.6em;
   overflow-x: auto;
   overflow-y: visible;
-  text-align: center;
 }
 
 .katex-display > .katex {

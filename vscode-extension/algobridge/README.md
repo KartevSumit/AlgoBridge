@@ -1,71 +1,65 @@
-# cf-bridge README
+# AlgoBridge for VS Code
 
-This is the README for your extension "cf-bridge". After writing up a brief description, we recommend including the following sections.
+Bring competitive programming problems directly into your editor. No more switching tabs to read statements or copy constraints.
+
+## Why?
+
+Context switching between browser and editor is annoying and slow. You lose focus, miss constraints, and waste time scrolling back and forth.
+
+On platforms where the problem statement stays visible while you code, the workflow is faster and more reliable. AlgoBridge brings that experience to VS Code, allowing you to reference constraints instantly and catch edge cases as you write.
+
+## Extension in Action
+
+![Importing a problem](images/screenshot1.png)
+*Click the browser extension and the problem appears instantly in your sidebar.*
+
+![Coding with statement](images/screenshot2.png)
+*Reference constraints and sample tests while you write your solution.*
+
+![File automation](images/screenshot3.png)
+*AlgoBridge automatically detects your files or creates new ones with your custom template.*
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+- **Instant Visibility**: One click in your browser brings the problem statement directly into a sidebar view.
+- **Clean Math Rendering**: Uses KaTeX to render LaTeX expressions with high-performance formatting.
+- **Auto-Syncing**: Automatically updates the problem view when you switch between active editor tabs.
+- **Workspace Integration**: Offers to automatically create solution files with a C++ template when a new problem is received.
+- **Privacy First**: Everything runs locally. Your browser talks directly to your editor over port **27123**.
 
-For example if there is an image subfolder under your extension project workspace:
+## How it works
 
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+```mermaid
+graph TB
+    A[Problem Page] --> B[Browser Extension]
+    B -->|localhost:27123| C[VS Code Extension]
+    C --> D[Problem View]
+    
+    style A fill:#60a5fa,stroke:#333,stroke-width:2px,color:#000
+    style D fill:#4ade80,stroke:#333,stroke-width:2px,color:#000
+```
 
 ## Requirements
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+To use this extension, you must also install the **AlgoBridge Browser Extension** (available for Chrome and Firefox) to extract problem data from web pages.
 
-## Extension Settings
+## Installation
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+1. Install this extension from the VS Code Marketplace.
+2. Open a folder or workspace in VS Code.
+3. The extension will start its local server on port `27123` automatically.
 
-For example:
+## Supported Platforms
 
-This extension contributes the following settings:
+* **Codeforces** ✓
+* More platforms (LeetCode, AtCoder) coming soon.
 
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+## Privacy
 
-## Known Issues
-
-Calling out known issues can help limit users opening duplicate issues against your extension.
-
-## Release Notes
-
-Users appreciate release notes as you update your extension.
-
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
+* No data leaves your machine.
+* No analytics or tracking.
+* Communication happens strictly over your local network.
 
 ---
 
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+Built for competitive programmers who want to stay in their editor.

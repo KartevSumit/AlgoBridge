@@ -1,11 +1,26 @@
 {
   "name": "algobridge",
-  "publisher": "kartevsumit",
+  "publisher": "KartevSumit",
   "displayName": "AlgoBridge",
   "description": "Codeforces Bridge for VS Code",
-  "version": "0.0.1",
+  "version": "1.0.0",
+  "icon": "media/icon.png",
   "engines": {
     "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Other",
+    "Education"
+  ],
+  "keywords": [
+    "codeforces",
+    "competitive programming",
+    "bridge",
+    "cp"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KartevSumit/AlgoBridge"
   },
   "main": "./out/extension.js",
   "activationEvents": [
@@ -36,5 +51,9 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./"
   },
-  "dependencies": {}
+  "devDependencies": {
+    "@types/node": "16.x",
+    "@types/vscode": "^1.75.0",
+    "typescript": "^4.9.4"
+  }
 }
