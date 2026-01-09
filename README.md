@@ -52,7 +52,7 @@ sequenceDiagram
     
     Page->>Extension: Extract problem
     Extension->>Extension: Clean HTML/LaTeX
-    Extension->>VSCode: POST to localhost:3000
+    Extension->>VSCode: POST to localhost:27123
     VSCode-->>Extension: Success
 ```
 
