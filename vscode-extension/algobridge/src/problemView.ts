@@ -16,7 +16,7 @@ export class ProblemViewProvider implements vscode.WebviewViewProvider {
 
   public async focus() {
     if (!this.view) {
-      await vscode.commands.executeCommand('algoBridge.problemView.focus');
+      await vscode.commands.executeCommand('algobridge.problemView.focus');
     } else {
       this.view.show?.(true);
     }
@@ -69,13 +69,13 @@ export class ProblemViewProvider implements vscode.WebviewViewProvider {
   }
 
   showProblem(problem: ProblemPayload) {
-    if (this.currentProblem?.url === problem.url) return;
+    const isNewProblem = this.currentProblem?.url !== problem.url;
 
     this.currentProblem = problem;
     this.isLoadingProblem = true;
     this.focus();
 
-    if (this.view) {
+    if (this.view && (isNewProblem || this.view.webview.html === this.emptyHtml())) {
       this.render();
     }
   }
@@ -178,16 +178,6 @@ export class ProblemViewProvider implements vscode.WebviewViewProvider {
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="${assets.katexCss}">
-
-<script>
-  window.MathJax = {
-    tex: {
-      inlineMath: [['$', '$'], ['\\\\(', '\\\\)']],
-      displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']]
-    },
-    svg: { fontCache: 'global' }
-  };
-</script>
 
 <script src="${assets.katexJs}"></script>
 <script src="${assets.katexAutoRenderJs}"></script>

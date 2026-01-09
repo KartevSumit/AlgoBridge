@@ -17,14 +17,15 @@ let store: ProblemStore;
 
 /* ---------------- Activation ---------------- */
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
   console.log('ALGOBRIDGE EXTENSION ACTIVATED');
 
   store = new ProblemStore(context);
+  console.log(`[AlgoBridge] Storage initialized in workspace.`);
   problemView = new ProblemViewProvider(context);
 
   context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider('algoBridge.problemView', problemView)
+    vscode.window.registerWebviewViewProvider('algobridge.problemView', problemView)
   );
 
   /* ---------- HTTP server ---------- */
@@ -38,13 +39,14 @@ export function activate(context: vscode.ExtensionContext) {
 
     let body = '';
     req.on('data', (chunk) => (body += chunk));
+
     req.on('end', async () => {
       try {
         const problem: ProblemPayload = JSON.parse(body);
 
         const base = problemNameToFilePrefix(problem.name);
 
-        vscode.commands.executeCommand('workbench.view.extension.algoBridgeContainer');
+        vscode.commands.executeCommand('workbench.view.extension.algobridgeContainer');
 
         let file = await findProblemFile(base);
 
@@ -62,16 +64,13 @@ export function activate(context: vscode.ExtensionContext) {
 
         if (file) {
           const doc = await vscode.workspace.openTextDocument(file);
-          await vscode.window.showTextDocument(doc, {
-            preview: false,
-            preserveFocus: false,
-          });
-
+          await vscode.window.showTextDocument(doc, { preview: false, preserveFocus: false });
           store.attachToFile(file.fsPath, problem);
-          problemView.showProblem(problem);
         } else {
           store.setPending(problem);
         }
+
+        problemView.showProblem(problem);
 
         res.writeHead(200);
         res.end('OK');
@@ -100,8 +99,14 @@ export function activate(context: vscode.ExtensionContext) {
       const filePath = editor.document.uri.fsPath;
       const base = path.basename(filePath).replace(/\.\w+$/, '');
 
-      const problem = store.getForFile(filePath) || store.getByBaseName(base);
+      const attached = store.attachPendingIfAny(editor);
 
+      if (attached) {
+        problemView.showProblem(attached);
+        return;
+      }
+
+      const problem = store.getForFile(filePath) || store.getByBaseName(base);
       problem ? problemView.showProblem(problem) : problemView.clear();
     })
   );
@@ -117,6 +122,12 @@ function syncWithEditor(editor?: vscode.TextEditor) {
 
   const filePath = editor.document.uri.fsPath;
   const base = path.basename(filePath).replace(/\.\w+$/, '');
+
+  const attached = store.attachPendingIfAny(editor);
+  if (attached) {
+    problemView.showProblem(attached);
+    return;
+  }
 
   const problem = store.getForFile(filePath) || store.getByBaseName(base);
 

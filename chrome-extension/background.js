@@ -1,3 +1,4 @@
+const api = typeof browser !== 'undefined' ? browser : chrome;
 chrome.action.onClicked.addListener(async (tab) => {
   if (!tab.id || !tab.url) return;
 

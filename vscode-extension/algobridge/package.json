@@ -1,5 +1,6 @@
 {
   "name": "algobridge",
+  "publisher": "kartevsumit",
   "displayName": "AlgoBridge",
   "description": "Codeforces Bridge for VS Code",
   "version": "0.0.1",
@@ -9,22 +10,22 @@
   "main": "./out/extension.js",
   "activationEvents": [
     "onLanguage:cpp",
-    "onView:algoBridge.problemView"
+    "onView:algobridge.problemView"
   ],
   "contributes": {
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "algoBridgeContainer",
+          "id": "algobridgeContainer",
           "title": "AlgoBridge",
           "icon": "media/icon.svg"
         }
       ]
     },
     "views": {
-      "algoBridgeContainer": [
+      "algobridgeContainer": [
         {
-          "id": "algoBridge.problemView",
+          "id": "algobridge.problemView",
           "name": "Problem Statement",
           "type": "webview"
         }
@@ -35,7 +36,5 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./"
   },
-  "dependencies": {
-    "mathjax-full": "^3.2.1"
-  }
+  "dependencies": {}
 }
