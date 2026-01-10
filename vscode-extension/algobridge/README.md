@@ -50,12 +50,11 @@ Install the AlgoBridge browser extension from the Firefox Add-ons store.
 
 The Chrome version of the browser extension is not published on the Chrome Web Store and must be installed manually:
 
-1. Download the extension from:
-   https://github.com/KartevSumit/AlgoBridge/tree/main/chrome-extension
+1. Download the extension from: https://github.com/KartevSumit/AlgoBridge
 2. Open Chrome and go to `chrome://extensions`
 3. Enable **Developer mode** (top-right)
 4. Click **Load unpacked**
-5. Select the `chrome-extension` directory
+5. Select `chrome-extension` from the directory
 
 After installation, you can use the extension normally.
 
