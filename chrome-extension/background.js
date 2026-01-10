@@ -3,7 +3,7 @@ chrome.action.onClicked.addListener(async (tab) => {
   if (!tab.id || !tab.url) return;
 
   if (!tab.url.includes('codeforces.com/contest')) {
-    alert('Open a Codeforces problem page first');
+    console.warn('Open a Codeforces problem page first');
     return;
   }
 
@@ -17,9 +17,7 @@ chrome.action.onClicked.addListener(async (tab) => {
       type: 'EXTRACT_AND_SEND',
     });
   } catch (err) {
-    // Script injection failures indicate CSP issues or page reload requirements
     console.error('[AlgoBridge] Content script injection failed', err);
-    alert('Failed to inject content script. Reload the page.');
   }
 });
 
@@ -31,6 +29,6 @@ chrome.runtime.onMessage.addListener((msg) => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(msg.payload),
   }).catch(() => {
-    alert('VS Code extension not running');
+    console.error('VS Code extension not running');
   });
 });

@@ -17,19 +17,24 @@ if (!window.__ALGOBRIDGE_INITIALIZED__) {
 
     // Convert MathJax script tags into raw LaTeX
     function extractLatex(root) {
-      root.querySelectorAll('script[type="math/tex"]').forEach((script) => {
-        const tex = script.textContent?.trim() ?? '';
-        script.replaceWith(document.createTextNode(`$${tex}$`));
+      root.querySelectorAll('script[type^="math/tex"]').forEach((script) => {
+        let tex = script.textContent || '';
+        const isDisplay = script.type.includes('mode=display');
+
+        tex = tex.replace(/\$\\text\{\(\}\$/g, '(').replace(/\$\\text\{\)\}\$/g, ')');
+
+        // Handle spaces inside the math block
+        if (tex.includes(' ') && !tex.includes('\\')) {
+          tex = tex.replace(/ /g, '\\ ');
+        }
+
+        const delimiter = isDisplay ? '$$' : '$';
+        const latexNode = document.createTextNode(`${delimiter}${tex}${delimiter}`);
+        script.parentNode.replaceChild(latexNode, script);
       });
 
-      root.querySelectorAll('script[type="math/tex; mode=display"]').forEach((script) => {
-        const tex = script.textContent?.trim() ?? '';
-        script.replaceWith(document.createTextNode(`$$${tex}$$`));
-      });
-
-      root
-        .querySelectorAll('.MathJax, .MathJax_Display, .MJX_Assistive_MathML')
-        .forEach((el) => el.remove());
+      // Cleanup visual artifacts
+      root.querySelectorAll('.MathJax_Display, .MJX_Assistive_MathML').forEach((el) => el.remove());
     }
 
     function extractProblem() {
@@ -37,20 +42,20 @@ if (!window.__ALGOBRIDGE_INITIALIZED__) {
       const statementEl = document.querySelector('.problem-statement');
       if (!titleEl || !statementEl) return null;
 
-      const name = titleEl.textContent.trim();
-      const url = location.href;
-
       const clone = statementEl.cloneNode(true);
       clone.querySelector('.title')?.remove();
+
       cleanStatement(clone);
 
-      if (clone instanceof Element) {
-        extractLatex(clone);
-      }
+      let html = clone.innerHTML;
+      html = html.replace(/\(/g, '$\\text{(}$').replace(/\)/g, '$\\text{)}$');
+      clone.innerHTML = html;
+
+      extractLatex(clone);
 
       return {
-        name,
-        url,
+        name: titleEl.textContent.trim(),
+        url: location.href,
         statementHtml: clone.innerHTML,
       };
     }
