@@ -8,16 +8,16 @@ Context switching between browser and editor is annoying and slow. You lose focu
 
 On platforms where the problem statement stays visible while you code, the workflow is faster and more reliable. AlgoBridge brings that experience to VS Code, allowing you to reference constraints instantly and catch edge cases as you write.
 
-## Extension in Action
+## Preview
 
-![Importing a problem](images/screenshot1.png)
-*Click the browser extension and the problem appears instantly in your sidebar.*
+![Statement](https://raw.githubusercontent.com/KartevSumit/AlgoBridge/main/vscode-extension/algobridge/images/screenshot1.png)
+_Problem statement_
 
-![Coding with statement](images/screenshot2.png)
-*Reference constraints and sample tests while you write your solution.*
+![Sample Input and Output](https://raw.githubusercontent.com/KartevSumit/AlgoBridge/main/vscode-extension/algobridge/images/screenshot2.png)
+_Sample Input and Output_
 
-![File automation](images/screenshot3.png)
-*AlgoBridge automatically detects your files or creates new ones with your custom template.*
+![Diagrams and Notes](https://raw.githubusercontent.com/KartevSumit/AlgoBridge/main/vscode-extension/algobridge/images/screenshot3.png)
+_Diagrams and Notes_
 
 ## Features
 
@@ -29,15 +29,7 @@ On platforms where the problem statement stays visible while you code, the workf
 
 ## How it works
 
-```mermaid
-graph TB
-    A[Problem Page] --> B[Browser Extension]
-    B -->|localhost:27123| C[VS Code Extension]
-    C --> D[Problem View]
-    
-    style A fill:#60a5fa,stroke:#333,stroke-width:2px,color:#000
-    style D fill:#4ade80,stroke:#333,stroke-width:2px,color:#000
-```
+![Datafow](https://raw.githubusercontent.com/KartevSumit/AlgoBridge/main/vscode-extension/algobridge/images/diagram.png)
 
 ## Requirements
 
@@ -51,14 +43,14 @@ To use this extension, you must also install the **AlgoBridge Browser Extension*
 
 ## Supported Platforms
 
-* **Codeforces** ✓
-* More platforms (LeetCode, AtCoder) coming soon.
+- **Codeforces** ✓
+- More platforms (LeetCode, AtCoder) coming soon.
 
 ## Privacy
 
-* No data leaves your machine.
-* No analytics or tracking.
-* Communication happens strictly over your local network.
+- No data leaves your machine.
+- No analytics or tracking.
+- Communication happens strictly over your local network.
 
 ---
 
