@@ -35,7 +35,29 @@ _Diagrams and Notes_
 
 ## Requirements
 
-To use this extension, you must also install the **AlgoBridge Browser Extension** (available for Chrome and Firefox) to extract problem data from web pages.
+To use this extension, you must also install the **AlgoBridge Browser Extension** to extract problem data from web pages.
+
+- **Firefox**: Available on Firefox Add-ons.
+- **Chrome**: The Chrome web extension must be installed manually from GitHub.
+
+## Browser Extension Installation
+
+### Firefox
+
+Install the AlgoBridge browser extension from the Firefox Add-ons store.
+
+### Chrome (Manual Installation)
+
+The Chrome version of the browser extension is not published on the Chrome Web Store and must be installed manually:
+
+1. Download the extension from:
+   https://github.com/KartevSumit/AlgoBridge/tree/main/chrome-extension
+2. Open Chrome and go to `chrome://extensions`
+3. Enable **Developer mode** (top-right)
+4. Click **Load unpacked**
+5. Select the `chrome-extension` directory
+
+After installation, you can use the extension normally.
 
 ## Installation
 

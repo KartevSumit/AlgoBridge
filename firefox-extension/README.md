@@ -35,9 +35,21 @@ _Diagrams and Notes_
 
 ## Requirements
 
-To use this extension, you must also install the **AlgoBridge Browser Extension** (available for Chrome and Firefox) to extract problem data from web pages.
+To use this extension, you must also install the **AlgoBridge Browser Extension for Firefox** to extract problem data from web pages.
 
-## Installation
+The Firefox browser extension is responsible for reading the problem statement from supported platforms and sending it to VS Code.
+
+## Browser Extension (Firefox)
+
+Install the AlgoBridge browser extension from **Firefox Add-ons**.
+
+Once installed:
+
+1. Open a supported problem page (e.g. Codeforces)
+2. Click the AlgoBridge icon in the Firefox toolbar
+3. The problem statement will appear instantly inside VS Code
+
+## Installation (VS Code)
 
 1. Install this extension from the VS Code Marketplace.
 2. Open a folder or workspace in VS Code.

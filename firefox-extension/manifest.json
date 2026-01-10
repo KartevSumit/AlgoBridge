@@ -11,8 +11,19 @@
     "default_icon": {
       "16": "icons/btn16.png",
       "32": "icons/btn32.png",
-      "48": "icons/btn64.png",
+      "64": "icons/btn64.png",
       "128": "icons/btn128.png"
+    }
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "algobridge@kartevsumit",
+      "data_collection_permissions": {
+        "required": ["none"],
+        "collects_personal_data": false,
+        "collects_user_activity": false,
+        "collects_web_activity": false
+      }
     }
   },
   "icons": {
