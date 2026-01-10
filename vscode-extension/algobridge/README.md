@@ -29,7 +29,9 @@ _Diagrams and Notes_
 
 ## How it works
 
-![Datafow](https://raw.githubusercontent.com/KartevSumit/AlgoBridge/main/vscode-extension/algobridge/images/diagram.png)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/KartevSumit/AlgoBridge/main/vscode-extension/algobridge/images/diagram.png" width="225" alt="Dataflow Diagram">
+</p>
 
 ## Requirements
 
