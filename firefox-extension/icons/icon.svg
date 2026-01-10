@@ -1,0 +1,44 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg"> <defs> <linearGradient id="bgGrad" x1="64" y1="0" x2="64" y2="128" gradientUnits="userSpaceOnUse"> <stop offset="0%" stop-color="#252526"/> <stop offset="100%" stop-color="#1A1A1A"/> </linearGradient>
+
+    <linearGradient id="goldBody" x1="48" y1="30" x2="80" y2="90" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stop-color="#FFED8A"/> <stop offset="40%" stop-color="#FFD700"/> <stop offset="100%" stop-color="#B8860B"/> </linearGradient>
+    
+    <linearGradient id="blueCradle" x1="20" y1="40" x2="108" y2="90" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stop-color="#00C3FF"/>
+        <stop offset="100%" stop-color="#005A9E"/>
+    </linearGradient>
+
+    <linearGradient id="blueRimLight" x1="64" y1="35" x2="64" y2="85" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stop-color="#00C3FF" stop-opacity="0.6"/>
+        <stop offset="80%" stop-color="#00C3FF" stop-opacity="0"/>
+    </linearGradient>
+
+    <filter id="softDropShadow" x="10" y="30" width="108" height="80" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+        <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+        <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+        <feGaussianBlur stdDeviation="3" result="effect1_foregroundBlur"/>
+        <feOffset dy="4"/>
+        <feComposite in2="shape" operator="out"/>
+        <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.35 0"/>
+        <feBlend mode="normal" in2="shape" result="effect1_dropShadow"/>
+        <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape"/>
+    </filter>
+</defs>
+
+<circle cx="64" cy="64" r="64" fill="url(#bgGrad)"/>
+
+<g filter="url(#softDropShadow)">
+    
+    <path d="M30 60 L48 42 L58 42 L42 58 L52 74 L38 88 L22 72 L30 60 Z" fill="url(#blueCradle)"/>
+    <path d="M98 60 L80 42 L70 42 L86 58 L76 74 L90 88 L106 72 L98 60 Z" fill="url(#blueCradle)"/>
+    
+    <g>
+        <path d="M48 38 H80 V48 C80 65 70 72 64 72 C58 72 48 65 48 48 V38 Z" fill="url(#goldBody)"/>
+        <path d="M80 42 C90 42 92 55 80 58 L80 52 C 86 52 86 46 80 46 V42 Z" fill="url(#goldBody)"/>
+        <path d="M48 42 C38 42 36 55 48 58 L48 52 C 42 52 42 46 48 46 V42 Z" fill="url(#goldBody)"/>
+        <path d="M58 72 L62 80 H66 L70 72 H58 Z" fill="#B8860B"/> <path d="M54 80 H74 L78 88 H50 L54 80 Z" fill="url(#goldBody)"/> <path d="M48 38 H80 V48 C80 65 70 72 64 72 C58 72 48 65 48 48 V38 Z" fill="url(#blueRimLight)" style="mix-blend-mode: screen;"/>
+        <path d="M80 42 C90 42 92 55 80 58 L80 52 C 86 52 86 46 80 46 V42 Z" fill="url(#blueRimLight)" style="mix-blend-mode: screen;"/>
+        <path d="M48 42 C38 42 36 55 48 58 L48 52 C 42 52 42 46 48 46 V42 Z" fill="url(#blueRimLight)" style="mix-blend-mode: screen;"/>
+    </g>
+</g>
+</svg>

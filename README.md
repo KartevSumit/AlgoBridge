@@ -107,6 +107,7 @@ AlgoBridge is built around four principles:
 algobridge/
 ├── vscode-extension/
 ├── chrome-extension/
+├── firefox-extension/
 └── README.md
 
 ```

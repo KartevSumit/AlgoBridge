@@ -31,6 +31,16 @@ export async function activate(context: vscode.ExtensionContext) {
   /* ---------- HTTP server ---------- */
 
   server = http.createServer(async (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
+
     if (req.method !== 'POST' || req.url !== '/problem') {
       res.writeHead(404);
       res.end();

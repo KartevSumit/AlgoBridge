@@ -1,27 +1,21 @@
 const api = typeof browser !== 'undefined' ? browser : chrome;
-chrome.action.onClicked.addListener(async (tab) => {
-  if (!tab.id || !tab.url) return;
+console.log('[AlgoBridge] background loaded');
 
-  if (!tab.url.includes('codeforces.com/contest')) {
-    console.warn('Open a Codeforces problem page first');
-    return;
-  }
+api.action.onClicked.addListener((tab) => {
+  console.log('[AlgoBridge] background clicked');
 
-  try {
-    await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      files: ['content.js'],
-    });
+  if (!tab.id) return;
 
-    chrome.tabs.sendMessage(tab.id, {
+  api.tabs
+    .sendMessage(tab.id, {
       type: 'EXTRACT_AND_SEND',
+    })
+    .catch(() => {
+      console.warn('[AlgoBridge] content script not available');
     });
-  } catch (err) {
-    console.error('[AlgoBridge] Content script injection failed', err);
-  }
 });
 
-chrome.runtime.onMessage.addListener((msg) => {
+api.runtime.onMessage.addListener((msg) => {
   if (msg.type !== 'SEND_PROBLEM') return;
 
   fetch('http://localhost:27123/problem', {
