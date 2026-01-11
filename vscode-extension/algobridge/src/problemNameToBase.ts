@@ -1,11 +1,19 @@
 export function problemNameToFilePrefix(name: string): string {
-  const letterMatch = name.match(/(?:^|\d+|(?<=\s))([A-Z])(?=\s|\.|$|-)/);
-  const letter = letterMatch ? letterMatch[1] : '';
+  const match = name.match(/^([A-Z]+)(\d*)\.\s*(.*)$/);
 
-  const base = name
-    .replace(/^(?:\d+[A-Z]|[A-Z])[\s.-]*/, '')
-    .replace(/[^a-zA-Z0-9]+/g, '_')
+  if (!match) {
+    return name
+      .replace(/[^A-Za-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+  }
+
+  const [, letter, number, title] = match;
+
+  const indexPart = number ? `${letter}_${number}` : letter;
+
+  const cleanTitle = title
+    .replace(/[^A-Za-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '');
 
-  return letter ? `${letter}_${base}` : base;
+  return `${indexPart}_${cleanTitle}`;
 }

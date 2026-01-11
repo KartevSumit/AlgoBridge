@@ -3,7 +3,7 @@
   "publisher": "KartevSumit",
   "displayName": "AlgoBridge",
   "description": "Codeforces Bridge for VS Code",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "icon": "media/icon.png",
   "engines": {
     "vscode": "^1.75.0"
