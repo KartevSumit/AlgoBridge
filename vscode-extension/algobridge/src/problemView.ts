@@ -40,12 +40,7 @@ export class ProblemViewProvider implements vscode.WebviewViewProvider {
   }
 
   clear() {
-    if (this.isLoadingProblem) {
-      if (!this.view) return;
-      this.view.webview.html = this.loadingHtml();
-      return;
-    }
-
+    this.isLoadingProblem = false;
     this.currentProblem = null;
 
     if (!this.view) return;
@@ -197,8 +192,37 @@ export class ProblemViewProvider implements vscode.WebviewViewProvider {
       console.error("KaTeX render failed", e);
     }
 
-    document.getElementById("loading")?.remove();
-    document.getElementById("content").style.display = "block";
+    const loading = document.getElementById("loading");
+    if (loading) loading.remove();
+    const content = document.getElementById("content");
+    if (content) content.style.display = "block";
+
+    function updateHighlight(target, add) {
+        while (target && target !== document) {
+            if (target.classList && target.classList.contains('test-example-line')) {
+                for (const cls of target.classList) {
+                    if (cls.startsWith('test-example-line-')) {
+                        const suffix = cls.substring('test-example-line-'.length);
+                        if (suffix !== 'even' && suffix !== 'odd' && suffix !== '0') {
+                            const partners = document.getElementsByClassName(cls);
+                            for (let i = 0; i < partners.length; i++) {
+                                if (add) {
+                                    partners[i].classList.add('test-case-hover');
+                                } else {
+                                    partners[i].classList.remove('test-case-hover');
+                                }
+                            }
+                        }
+                    }
+                }
+                return;
+            }
+            target = target.parentElement;
+        }
+    }
+
+    document.addEventListener('mouseover', (e) => updateHighlight(e.target, true));
+    document.addEventListener('mouseout', (e) => updateHighlight(e.target, false));
   });
 </script>
 
@@ -478,10 +502,10 @@ code {
 
 .sample-test pre {
   margin: 0;
-  padding: 8px 10px;
+  padding: 3px 3px;
   background: transparent;
   border: none;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.45;
 }
 
@@ -513,6 +537,26 @@ code {
   100% { background-position: -200% 0; }
 }
 
+/* ---------- Alternating Test Case Rows ---------- */
+
+.test-example-line-even {
+  background-color: color-mix(in srgb, var(--fg) 8%, transparent);
+  margin: 0;
+  padding: 0 7px;
+  padding-top: 0.4px;
+}
+
+.test-example-line-odd {
+  background-color: color-mix(in srgb, var(--fg) 1%, transparent);
+  margin: 0;
+  padding: 0 7px;
+  padding-top: 0.4px;
+}
+
+.test-case-hover {
+    background-color: var(--vscode-editor-hoverHighlightBackground) !important;
+    cursor: pointer;
+}
 
 </style>
 </head>

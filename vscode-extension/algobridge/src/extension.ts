@@ -76,11 +76,10 @@ export async function activate(context: vscode.ExtensionContext) {
           const doc = await vscode.workspace.openTextDocument(file);
           await vscode.window.showTextDocument(doc, { preview: false, preserveFocus: false });
           store.attachToFile(file.fsPath, problem);
+          problemView.showProblem(problem);
         } else {
           store.setPending(problem);
         }
-
-        problemView.showProblem(problem);
 
         res.writeHead(200);
         res.end('OK');
