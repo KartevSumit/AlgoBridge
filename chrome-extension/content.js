@@ -21,7 +21,11 @@ if (!window.__ALGOBRIDGE_INITIALIZED__) {
         let tex = script.textContent || '';
         const isDisplay = script.type.includes('mode=display');
 
-        tex = tex.replace(/\$\\text\{\(\}\$/g, '(').replace(/\$\\text\{\)\}\$/g, ')');
+        tex = tex
+          .replace(/\$\\text\{\(\}\$/g, '(')
+          .replace(/\$\\text\{\)\}\$/g, ')')
+          .replace(/\$\\text\{\[\}\$/g, '[')
+          .replace(/\$\\text\{\]\}\$/g, ']');
 
         // Handle spaces inside the math block
         if (tex.includes(' ') && !tex.includes('\\')) {
@@ -48,7 +52,11 @@ if (!window.__ALGOBRIDGE_INITIALIZED__) {
       cleanStatement(clone);
 
       let html = clone.innerHTML;
-      html = html.replace(/\(/g, '$\\text{(}$').replace(/\)/g, '$\\text{)}$');
+      html = html
+        .replace(/\(/g, '$\\text{(}$')
+        .replace(/\)/g, '$\\text{)}$')
+        .replace(/\[/g, '$\\text{[}$')
+        .replace(/\]/g, '$\\text{]}$');
       clone.innerHTML = html;
 
       extractLatex(clone);

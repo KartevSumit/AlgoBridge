@@ -49,15 +49,15 @@ The Chrome version of AlgoBridge is **not published on the Chrome Web Store** an
 
 ### Steps
 
-1. Download the Chrome extension source from: https://github.com/KartevSumit/AlgoBridge/tree/main/chrome-extension
+1. Download the Chrome extension source from: https://github.com/KartevSumit/AlgoBridge`
 
-2. Open Chrome and navigate to: chrome://extensions
+2. Open Chrome and navigate to: `chrome://extensions`
 
 3. Enable **Developer mode** (top-right corner)
 
 4. Click **Load unpacked**
 
-5. Select the `chrome-extension` directory
+5. Select `chrome-extension` from directory
 
 The AlgoBridge icon will now appear in the Chrome toolbar.
 
