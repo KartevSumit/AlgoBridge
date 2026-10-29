@@ -50,7 +50,8 @@
   },
   "scripts": {
     "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./"
+    "watch": "tsc -watch -p ./",
+    "test": "npm run compile && node test/runTests.js"
   },
   "devDependencies": {
     "@types/node": "16.x",

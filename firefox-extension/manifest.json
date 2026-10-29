@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "AlgoBridge",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Send Codeforces problem statement to VS Code",
 
   "permissions": ["activeTab", "https://codeforces.com/*", "http://localhost:27123/*"],

@@ -6,3 +6,9 @@ dist/
 *.log
 .prettierrc
 *.vsix
+# AI Workflow artifacts
+repomix-output.xml
+codebase.xml
+PLAN.md
+ARCHITECTURE.md
+repomix.config.json
