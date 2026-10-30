@@ -75,6 +75,17 @@ After installation, you can use the extension normally.
 - No analytics or tracking.
 - Communication happens strictly over your local network.
 
+## Protocol Schema Note
+
+The problem payload schema in `protocol/problem.schema.json` is a protocol specification sketch outlining expected property keys and types; runtime ingest validates key presence directly.
+
+## Design Decisions
+
+- **Same filename, different problem:** If `Name.cpp` already exists for a different problem, the extension asks whether to reuse the file, create `Name_2.cpp`, or cancel. It does not overwrite silently.
+- **Files with no saved link:** If a file exists but has no saved problem link, it is reused without a prompt, because the user clearly wants the problem in that file.
+- **`.gitignore` prompt:** The extension never edits `.gitignore` by itself. It shows a one-time notification with an "Add" button, so the user stays in control.
+- **Contest IDs:** IDs can arrive as a number (`1984`) or a string (`"1984"`). Both are turned into strings before comparing, so the same problem is always recognized as the same.
+
 ---
 
 Built for competitive programmers who want to stay in their editor.
