@@ -1,13 +1,15 @@
 import * as vscode from 'vscode';
 import * as http from 'http';
 import * as path from 'path';
+import * as fs from 'fs';
 
 import { ProblemViewProvider, ProblemPayload } from './problemView';
 import { ProblemStore } from './problemStore';
 
 import { problemNameToFilePrefix } from './problemNameToBase';
 import { findProblemFile } from './findProblemFile';
-import { createProblemFile } from './createProblemFile';
+import { createProblemFile, createFileWithRetry, nextAvailableName, NoFreeNameError } from './createProblemFile';
+import { resolveTargetFile, TargetDeps } from './resolveTarget';
 
 /* ---------------- Security & Guard Constants ---------------- */
 
@@ -78,6 +80,75 @@ export function applyCors(res: http.ServerResponse, origin: string): void {
 let server: http.Server | null = null;
 let problemView: ProblemViewProvider;
 let store: ProblemStore;
+let ingestSeq = 0;
+let activeEditorDisposable: vscode.Disposable | null = null;
+
+export interface IngestDeps {
+  resolveTarget: (problem: ProblemPayload) => Promise<{ uri: vscode.Uri; mode: 'created' | 'reused' } | undefined>;
+  openDocument: (uri: vscode.Uri) => PromiseLike<any>;
+  showDocument?: (doc: any) => PromiseLike<any>;
+  attach: (fsPath: string, problem: ProblemPayload) => Promise<void>;
+  remap: (fsPath: string, problem: ProblemPayload) => Promise<void>;
+  view: { showProblem: (problem: ProblemPayload) => void };
+  notify: { showErrorMessage: (msg: string) => void };
+  getSeq: () => number;
+  bumpSeq: () => number;
+}
+
+export async function runIngest(problem: ProblemPayload, deps: IngestDeps): Promise<void> {
+  try {
+    const seq = deps.bumpSeq();
+    const resolved = await deps.resolveTarget(problem);
+    if (seq !== deps.getSeq()) return;
+
+    if (resolved) {
+      const doc = await deps.openDocument(resolved.uri);
+      if (seq !== deps.getSeq()) return;
+
+      if (deps.showDocument) {
+        await deps.showDocument(doc);
+        if (seq !== deps.getSeq()) return;
+      }
+
+      if (resolved.mode === 'reused') {
+        await deps.remap(resolved.uri.fsPath, problem);
+      } else {
+        await deps.attach(resolved.uri.fsPath, problem);
+      }
+      if (seq !== deps.getSeq()) return;
+
+      deps.view.showProblem(problem);
+    }
+  } catch (err: any) {
+    if (err instanceof NoFreeNameError || err?.name === 'NoFreeNameError') {
+      deps.notify.showErrorMessage(err.message);
+      return;
+    }
+    throw err;
+  }
+}
+
+export function handleActiveEditorChange(
+  editor?: vscode.TextEditor,
+  storeInstance: ProblemStore = store,
+  viewInstance: ProblemViewProvider = problemView
+): void {
+  if (!editor) {
+    viewInstance?.clear();
+    return;
+  }
+
+  // I7: Ignore non-file schemes (untitled, output, git, vscode-userdata)
+  if (editor.document.uri.scheme !== 'file') {
+    return;
+  }
+
+  const filePath = editor.document.uri.fsPath;
+  const stat = storeInstance?.getStat(filePath);
+  if (stat) {
+    viewInstance?.showProblem(stat.payload);
+  }
+}
 
 /* ---------------- Activation ---------------- */
 
@@ -140,37 +211,69 @@ export async function activate(context: vscode.ExtensionContext) {
         try {
           const problem: ProblemPayload = JSON.parse(body);
 
-          const base = problemNameToFilePrefix(problem.name);
-
           vscode.commands.executeCommand('workbench.view.extension.algobridgeContainer');
 
-          let file = await findProblemFile(base);
+          let mySeq = 0;
+          const deps: TargetDeps = {
+            findProblemFile: (b) => findProblemFile(b),
+            getStat: (p) => store.getStat(typeof p === 'string' ? p : p.fsPath),
+            hasStatFile: (b) => store.hasStatFile(b),
+            prompt: async (msg, opts) => {
+              return await vscode.window.showInformationMessage(msg, ...opts);
+            },
+            createFile: async (b) => {
+              if (ingestSeq !== mySeq) {
+                return null;
+              }
+              return await createFileWithRetry(
+                b,
+                createProblemFile,
+                (n) => {
+                  const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+                  return (
+                    (root ? fs.existsSync(path.join(root, `${n}.cpp`)) : false) ||
+                    store.getByBaseName(n) !== undefined
+                  );
+                }
+              );
+            },
+            fileExists: (b) => {
+              const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+              return root ? fs.existsSync(path.join(root, `${b}.cpp`)) : false;
+            },
+            isTaken: (b) => {
+              const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+              const onDisk = root ? fs.existsSync(path.join(root, `${b}.cpp`)) : false;
+              const inStore = store.getByBaseName(b) !== undefined;
+              return onDisk || inStore;
+            },
+          };
 
-          if (!file) {
-            const choice = await vscode.window.showInformationMessage(
-              `No file found for "${base}". Create ${base}.cpp?`,
-              'Create',
-              'Cancel'
-            );
+          const ingestDeps: IngestDeps = {
+            resolveTarget: (p) => resolveTargetFile(p, deps),
+            openDocument: (uri) => vscode.workspace.openTextDocument(uri),
+            showDocument: (doc) => vscode.window.showTextDocument(doc, { preview: false, preserveFocus: false }),
+            attach: (p, prob) => store.attachToFile(p, prob),
+            remap: (p, prob) => store.remap(p, prob),
+            view: { showProblem: (prob) => problemView.showProblem(prob) },
+            notify: { showErrorMessage: (msg) => vscode.window.showErrorMessage(msg) },
+            getSeq: () => ingestSeq,
+            bumpSeq: () => {
+              mySeq = ++ingestSeq;
+              return mySeq;
+            },
+          };
 
-            if (choice === 'Create') {
-              file = await createProblemFile(base);
-            }
-          }
-
-          if (file) {
-            const doc = await vscode.workspace.openTextDocument(file);
-            await vscode.window.showTextDocument(doc, { preview: false, preserveFocus: false });
-            store.attachToFile(file.fsPath, problem);
-            problemView.showProblem(problem);
-          } else {
-            store.setPending(problem);
-          }
+          await runIngest(problem, ingestDeps);
 
           res.writeHead(200);
           res.end('OK');
-        } catch (e) {
-          console.error('Invalid payload', e);
+        } catch (e: any) {
+          if (e instanceof NoFreeNameError) {
+            vscode.window.showErrorMessage(e.message);
+          } else {
+            console.error('Invalid payload or ingest error', e);
+          }
           res.writeHead(400);
           res.end('Invalid payload');
         }
@@ -197,57 +300,30 @@ export async function activate(context: vscode.ExtensionContext) {
 
   /* ---------- Editor change handling ---------- */
 
-  context.subscriptions.push(
-    vscode.window.onDidChangeActiveTextEditor((editor) => {
-      if (!editor) {
-        problemView.clear();
-        return;
-      }
-
-      const filePath = editor.document.uri.fsPath;
-      const base = path.basename(filePath).replace(/\.\w+$/, '');
-
-      const attached = store.attachPendingIfAny(editor);
-
-      if (attached) {
-        problemView.showProblem(attached);
-        return;
-      }
-
-      const problem = store.getForFile(filePath) || store.getByBaseName(base);
-      problem ? problemView.showProblem(problem) : problemView.clear();
-    })
-  );
-
-  syncWithEditor(vscode.window.activeTextEditor);
-}
-
-function syncWithEditor(editor?: vscode.TextEditor) {
-  if (!editor) {
-    problemView.clear();
-    return;
+  if (!activeEditorDisposable) {
+    activeEditorDisposable = vscode.window.onDidChangeActiveTextEditor((editor) => {
+      handleActiveEditorChange(editor);
+    });
+    context.subscriptions.push(activeEditorDisposable);
   }
 
-  const filePath = editor.document.uri.fsPath;
-  const base = path.basename(filePath).replace(/\.\w+$/, '');
-
-  const attached = store.attachPendingIfAny(editor);
-  if (attached) {
-    problemView.showProblem(attached);
-    return;
-  }
-
-  const problem = store.getForFile(filePath) || store.getByBaseName(base);
-
-  if (problem) {
-    problemView.showProblem(problem);
-  } else {
-    problemView.clear();
-  }
+  handleActiveEditorChange(vscode.window.activeTextEditor);
 }
 
 /* ---------------- Deactivation ---------------- */
 
-export function deactivate() {
-  server?.close();
+export async function deactivate(): Promise<void> {
+  if (activeEditorDisposable) {
+    activeEditorDisposable.dispose();
+    activeEditorDisposable = null;
+  }
+  if (server) {
+    if (typeof (server as any).closeAllConnections === 'function') {
+      (server as any).closeAllConnections();
+    }
+    await new Promise<void>((resolve) => {
+      server!.close(() => resolve());
+    });
+    server = null;
+  }
 }
