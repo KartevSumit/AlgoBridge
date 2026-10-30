@@ -120,8 +120,8 @@ export async function runIngest(problem: ProblemPayload, deps: IngestDeps): Prom
       deps.view.showProblem(problem);
     }
   } catch (err: any) {
+    deps.notify.showErrorMessage(err?.message || 'Failed to ingest problem');
     if (err instanceof NoFreeNameError || err?.name === 'NoFreeNameError') {
-      deps.notify.showErrorMessage(err.message);
       return;
     }
     throw err;
@@ -147,6 +147,8 @@ export function handleActiveEditorChange(
   const stat = storeInstance?.getStat(filePath);
   if (stat) {
     viewInstance?.showProblem(stat.payload);
+  } else {
+    viewInstance?.clear();
   }
 }
 

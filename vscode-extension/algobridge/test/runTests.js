@@ -216,6 +216,7 @@ async function runIntegrationTests() {
 
   assert.strictEqual(warningShown, true, 'H-PORT (B3): Expected warning message on port conflict');
   assert.strictEqual(bError && bError.code, 'EADDRINUSE', 'H-PORT (B3): Server B received EADDRINUSE');
+  await new Promise((resolve) => serverB.close(() => resolve()));
   console.log('✓ H-PORT passed');
 
   // F1 (reload): activate again after deactivate

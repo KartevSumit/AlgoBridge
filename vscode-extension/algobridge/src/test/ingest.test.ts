@@ -1,8 +1,13 @@
 import * as assert from 'assert';
+import * as path from 'path';
+import * as os from 'os';
+import * as fs from 'fs';
 import * as vscode from 'vscode';
-import { runIngest, IngestDeps } from '../extension';
+import { runIngest, IngestDeps, handleActiveEditorChange } from '../extension';
 import { ProblemPayload } from '../problemView';
 import { NoFreeNameError, createFileWithRetry } from '../createProblemFile';
+import { ProblemStore } from '../problemStore';
+import { resolveTargetFile, TargetDeps } from '../resolveTarget';
 
 // Helper for deferred promise
 function createDeferred<T>() {
@@ -415,6 +420,176 @@ export async function runIngestTests() {
 
     assert.strictEqual(attachCount, 0, 'T4-4 (R-F3): Nothing attaches on rejection');
     console.log('✓ T4-4 (R-F3) passed');
+  }
+
+  // T-CANCEL (R1, R2): Make a temp workspace with a real ProblemStore, and set active editor to random.cpp.
+  // Run an ingest where user cancels.
+  // Check: .algobridge/ contains zero .stat files, store has zero entries, random.cpp has no stat.
+  {
+    const tmpWs = fs.mkdtempSync(path.join(os.tmpdir(), 'algobridge-cancel-'));
+    const randomFile = path.join(tmpWs, 'random.cpp');
+    fs.writeFileSync(randomFile, '// user existing code');
+
+    const stateMap = new Map<string, any>();
+    const mockContext = {
+      workspaceState: {
+        get: (k: string) => stateMap.get(k),
+        update: (k: string, v: any) => {
+          stateMap.set(k, v);
+          return Promise.resolve();
+        },
+      },
+    };
+
+    const realStore = new ProblemStore(mockContext as any, tmpWs);
+
+    let viewShownProblem: any = null;
+    let viewCleared = false;
+    const mockView = {
+      showProblem: (p: any) => { viewShownProblem = p; },
+      clear: () => { viewCleared = true; viewShownProblem = null; },
+    };
+
+    // Set active editor to random.cpp
+    const randomEditor = {
+      document: { uri: { scheme: 'file', fsPath: randomFile } },
+    };
+    handleActiveEditorChange(randomEditor as any, realStore, mockView as any);
+    assert.strictEqual(viewShownProblem, null, 'random.cpp has no problem before ingest');
+
+    // Run an ingest where the user cancels
+    const cancelProblem: ProblemPayload = {
+      name: 'CancelledProblem',
+      url: 'https://codeforces.com/contest/999/problem/C',
+      statementHtml: '<p>Cancel me</p>',
+    };
+
+    const targetDeps: TargetDeps = {
+      findProblemFile: async () => null,
+      getStat: (p) => realStore.getStat(typeof p === 'string' ? p : p.fsPath),
+      hasStatFile: (b) => realStore.hasStatFile(b),
+      prompt: async () => undefined, // User cancels
+      createFile: async () => null,  // Cancelled -> returns null
+      fileExists: () => false,
+      isTaken: () => false,
+    };
+
+    const ingestDeps: IngestDeps = {
+      resolveTarget: (p) => resolveTargetFile(p, targetDeps),
+      openDocument: async (uri) => ({ uri }),
+      attach: (p, prob) => realStore.attachToFile(p, prob),
+      remap: (p, prob) => realStore.remap(p, prob),
+      view: mockView,
+      notify: { showErrorMessage: () => {} },
+      getSeq: () => 0,
+      bumpSeq: () => 1,
+    };
+
+    await runIngest(cancelProblem, ingestDeps);
+
+    // Check: .algobridge/ folder contains zero .stat files
+    const algobridgeDir = path.join(tmpWs, '.algobridge');
+    const statFiles = fs.existsSync(algobridgeDir)
+      ? fs.readdirSync(algobridgeDir).filter((f) => f.endsWith('.stat'))
+      : [];
+    assert.strictEqual(statFiles.length, 0, 'T-CANCEL (R1): .algobridge/ must contain zero .stat files on cancel');
+
+    // Store has zero entries, and random.cpp has no stat
+    assert.strictEqual(realStore.getStat(randomFile), undefined, 'T-CANCEL (R2): random.cpp has no stat');
+    assert.strictEqual(realStore.getByBaseName('CancelledProblem'), undefined, 'T-CANCEL (R2): store has zero entries');
+
+    // Active editor switch to random.cpp shows no problem
+    viewCleared = false;
+    handleActiveEditorChange(randomEditor as any, realStore, mockView as any);
+    assert.strictEqual(viewShownProblem, null, 'T-CANCEL (R2): active editor on random.cpp shows no problem');
+
+    fs.rmSync(tmpWs, { recursive: true, force: true });
+    console.log('✓ T-CANCEL passed');
+  }
+
+  // T-CANCEL2: Same setup, but createFile throws an error. Same checks, plus error message shown.
+  {
+    const tmpWs = fs.mkdtempSync(path.join(os.tmpdir(), 'algobridge-cancel2-'));
+    const randomFile = path.join(tmpWs, 'random.cpp');
+    fs.writeFileSync(randomFile, '// user existing code');
+
+    const stateMap = new Map<string, any>();
+    const mockContext = {
+      workspaceState: {
+        get: (k: string) => stateMap.get(k),
+        update: (k: string, v: any) => {
+          stateMap.set(k, v);
+          return Promise.resolve();
+        },
+      },
+    };
+
+    const realStore = new ProblemStore(mockContext as any, tmpWs);
+
+    let viewShownProblem: any = null;
+    const mockView = {
+      showProblem: (p: any) => { viewShownProblem = p; },
+      clear: () => { viewShownProblem = null; },
+    };
+
+    const randomEditor = {
+      document: { uri: { scheme: 'file', fsPath: randomFile } },
+    };
+    handleActiveEditorChange(randomEditor as any, realStore, mockView as any);
+
+    const errorProblem: ProblemPayload = {
+      name: 'ErrorProblem',
+      url: 'https://codeforces.com/contest/999/problem/E',
+      statementHtml: '<p>Error test</p>',
+    };
+
+    const targetDeps: TargetDeps = {
+      findProblemFile: async () => null,
+      getStat: (p) => realStore.getStat(typeof p === 'string' ? p : p.fsPath),
+      hasStatFile: (b) => realStore.hasStatFile(b),
+      prompt: async () => 'Create',
+      createFile: async () => {
+        throw new Error('EIO: disk error');
+      },
+      fileExists: () => false,
+      isTaken: () => false,
+    };
+
+    let errorMessageShown: string | null = null;
+    const ingestDeps: IngestDeps = {
+      resolveTarget: (p) => resolveTargetFile(p, targetDeps),
+      openDocument: async (uri) => ({ uri }),
+      attach: (p, prob) => realStore.attachToFile(p, prob),
+      remap: (p, prob) => realStore.remap(p, prob),
+      view: mockView,
+      notify: {
+        showErrorMessage: (msg: string) => {
+          errorMessageShown = msg;
+        },
+      },
+      getSeq: () => 0,
+      bumpSeq: () => 1,
+    };
+
+    try {
+      await runIngest(errorProblem, ingestDeps);
+    } catch {}
+
+    assert.notStrictEqual(errorMessageShown, null, 'T-CANCEL2: error message must be shown when file creation throws');
+
+    const algobridgeDir = path.join(tmpWs, '.algobridge');
+    const statFiles = fs.existsSync(algobridgeDir)
+      ? fs.readdirSync(algobridgeDir).filter((f) => f.endsWith('.stat'))
+      : [];
+    assert.strictEqual(statFiles.length, 0, 'T-CANCEL2 (R1): .algobridge/ must contain zero .stat files on error');
+    assert.strictEqual(realStore.getStat(randomFile), undefined, 'T-CANCEL2 (R2): random.cpp has no stat on error');
+    assert.strictEqual(realStore.getByBaseName('ErrorProblem'), undefined, 'T-CANCEL2 (R2): store has zero entries');
+
+    handleActiveEditorChange(randomEditor as any, realStore, mockView as any);
+    assert.strictEqual(viewShownProblem, null, 'T-CANCEL2 (R2): active editor on random.cpp shows no problem');
+
+    fs.rmSync(tmpWs, { recursive: true, force: true });
+    console.log('✓ T-CANCEL2 passed');
   }
 }
 
