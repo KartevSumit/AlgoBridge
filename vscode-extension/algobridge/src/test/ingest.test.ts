@@ -8,6 +8,7 @@ import { ProblemPayload } from '../problemView';
 import { NoFreeNameError, createFileWithRetry } from '../createProblemFile';
 import { ProblemStore } from '../problemStore';
 import { resolveTargetFile, TargetDeps } from '../resolveTarget';
+import { enrichProblemIdentity } from '../identity';
 
 // Helper for deferred promise
 function createDeferred<T>() {
@@ -420,6 +421,57 @@ export async function runIngestTests() {
 
     assert.strictEqual(attachCount, 0, 'T4-4 (R-F3): Nothing attaches on rejection');
     console.log('✓ T4-4 (R-F3) passed');
+  }
+
+  // T-URL (R3): Given url: "https://codeforces.com/contest/2272/problem/D" and no identity fields,
+  // the problem gets platform = codeforces, contestId = "2272", index = "D".
+  {
+    const cfProblem: ProblemPayload = {
+      name: '2272D',
+      url: 'https://codeforces.com/contest/2272/problem/D',
+      statementHtml: '<p>statement</p>',
+    };
+    const enriched = enrichProblemIdentity(cfProblem);
+    assert.strictEqual(enriched.platform, 'codeforces', 'T-URL (R3): platform parsed as codeforces');
+    assert.strictEqual(enriched.contestId, '2272', 'T-URL (R3): contestId parsed as 2272');
+    assert.strictEqual(enriched.index, 'D', 'T-URL (R3): index parsed as D');
+
+    // Problemset URL variant
+    const psProblem: ProblemPayload = {
+      name: '123A',
+      url: 'https://codeforces.com/problemset/problem/123/A',
+      statementHtml: '<p>statement</p>',
+    };
+    const enrichedPs = enrichProblemIdentity(psProblem);
+    assert.strictEqual(enrichedPs.platform, 'codeforces', 'T-URL (R3): problemset platform is codeforces');
+    assert.strictEqual(enrichedPs.contestId, '123', 'T-URL (R3): problemset contestId is 123');
+    assert.strictEqual(enrichedPs.index, 'A', 'T-URL (R3): problemset index is A');
+
+    console.log('✓ T-URL passed');
+  }
+
+  // T-URL2: url doesn't match, or is missing -> fields stay undefined, no crash
+  {
+    const nonCfProblem: ProblemPayload = {
+      name: 'Other',
+      url: 'https://example.com/problems/123',
+      statementHtml: '<p>other</p>',
+    };
+    const nonCf = enrichProblemIdentity(nonCfProblem);
+    assert.strictEqual(nonCf.platform, undefined, 'T-URL2: unmatched URL platform is undefined');
+    assert.strictEqual(nonCf.contestId, undefined, 'T-URL2: unmatched URL contestId is undefined');
+    assert.strictEqual(nonCf.index, undefined, 'T-URL2: unmatched URL index is undefined');
+
+    const missingUrlProblem = {
+      name: 'NoUrl',
+      statementHtml: '<p>no url</p>',
+    } as ProblemPayload;
+    const missing = enrichProblemIdentity(missingUrlProblem);
+    assert.strictEqual(missing.platform, undefined, 'T-URL2: missing URL platform is undefined');
+    assert.strictEqual(missing.contestId, undefined, 'T-URL2: missing URL contestId is undefined');
+    assert.strictEqual(missing.index, undefined, 'T-URL2: missing URL index is undefined');
+
+    console.log('✓ T-URL2 passed');
   }
 
   // T-CANCEL (R1, R2): Make a temp workspace with a real ProblemStore, and set active editor to random.cpp.

@@ -69,3 +69,40 @@ export function identityEquals(
     normA.index === normB.index
   );
 }
+
+export function parseProblemUrl(url?: string): { platform?: string; contestId?: string; index?: string } {
+  if (!url || typeof url !== 'string') {
+    return { platform: undefined, contestId: undefined, index: undefined };
+  }
+  try {
+    const contestMatch = url.match(/codeforces\.com\/(?:contest|gym)\/([^/]+)\/problem\/([^/?#]+)/i);
+    if (contestMatch) {
+      return {
+        platform: 'codeforces',
+        contestId: contestMatch[1],
+        index: contestMatch[2],
+      };
+    }
+    const problemsetMatch = url.match(/codeforces\.com\/problemset\/problem\/([^/]+)\/([^/?#]+)/i);
+    if (problemsetMatch) {
+      return {
+        platform: 'codeforces',
+        contestId: problemsetMatch[1],
+        index: problemsetMatch[2],
+      };
+    }
+  } catch {
+    // ignore
+  }
+  return { platform: undefined, contestId: undefined, index: undefined };
+}
+
+export function enrichProblemIdentity(problem: ProblemPayload): ProblemPayload {
+  const fromUrl = parseProblemUrl(problem.url);
+  return {
+    ...problem,
+    platform: problem.platform || fromUrl.platform,
+    contestId: problem.contestId || fromUrl.contestId,
+    index: problem.index || fromUrl.index,
+  };
+}

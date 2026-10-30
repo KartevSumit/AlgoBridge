@@ -10,6 +10,7 @@ import { problemNameToFilePrefix } from './problemNameToBase';
 import { findProblemFile } from './findProblemFile';
 import { createProblemFile, createFileWithRetry, nextAvailableName, NoFreeNameError } from './createProblemFile';
 import { resolveTargetFile, TargetDeps } from './resolveTarget';
+import { enrichProblemIdentity } from './identity';
 
 /* ---------------- Security & Guard Constants ---------------- */
 
@@ -96,9 +97,10 @@ export interface IngestDeps {
 }
 
 export async function runIngest(problem: ProblemPayload, deps: IngestDeps): Promise<void> {
+  const enrichedProblem = enrichProblemIdentity(problem);
   try {
     const seq = deps.bumpSeq();
-    const resolved = await deps.resolveTarget(problem);
+    const resolved = await deps.resolveTarget(enrichedProblem);
     if (seq !== deps.getSeq()) return;
 
     if (resolved) {
@@ -111,13 +113,13 @@ export async function runIngest(problem: ProblemPayload, deps: IngestDeps): Prom
       }
 
       if (resolved.mode === 'reused') {
-        await deps.remap(resolved.uri.fsPath, problem);
+        await deps.remap(resolved.uri.fsPath, enrichedProblem);
       } else {
-        await deps.attach(resolved.uri.fsPath, problem);
+        await deps.attach(resolved.uri.fsPath, enrichedProblem);
       }
       if (seq !== deps.getSeq()) return;
 
-      deps.view.showProblem(problem);
+      deps.view.showProblem(enrichedProblem);
     }
   } catch (err: any) {
     deps.notify.showErrorMessage(err?.message || 'Failed to ingest problem');
@@ -211,7 +213,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
       req.on('end', async () => {
         try {
-          const problem: ProblemPayload = JSON.parse(body);
+          const rawProblem: ProblemPayload = JSON.parse(body);
+          const problem = enrichProblemIdentity(rawProblem);
 
           vscode.commands.executeCommand('workbench.view.extension.algobridgeContainer');
 
