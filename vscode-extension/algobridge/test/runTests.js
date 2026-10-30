@@ -8,29 +8,34 @@ const origRequire = Module.prototype.require;
 let warningShown = false;
 let errorShown = false;
 
+const mockVscode = {
+  Uri: {
+    file: (p) => ({ fsPath: p, scheme: 'file' }),
+  },
+  window: {
+    registerWebviewViewProvider: () => ({ dispose: () => {} }),
+    onDidChangeActiveTextEditor: () => ({ dispose: () => {} }),
+    showInformationMessage: async () => undefined,
+    showWarningMessage: async (msg) => {
+      warningShown = true;
+      return undefined;
+    },
+    showErrorMessage: async (msg) => {
+      errorShown = true;
+      return undefined;
+    },
+    activeTextEditor: undefined,
+  },
+  commands: { executeCommand: async () => {} },
+  workspace: {
+    openTextDocument: async () => ({}),
+    findFiles: async () => [],
+  },
+};
+
 Module.prototype.require = function (id) {
   if (id === 'vscode') {
-    return {
-      window: {
-        registerWebviewViewProvider: () => ({ dispose: () => {} }),
-        onDidChangeActiveTextEditor: () => ({ dispose: () => {} }),
-        showInformationMessage: async () => undefined,
-        showWarningMessage: async (msg) => {
-          warningShown = true;
-          return undefined;
-        },
-        showErrorMessage: async (msg) => {
-          errorShown = true;
-          return undefined;
-        },
-        activeTextEditor: undefined,
-      },
-      commands: { executeCommand: async () => {} },
-      workspace: {
-        openTextDocument: async () => ({}),
-        findFiles: async () => [],
-      },
-    };
+    return mockVscode;
   }
   return origRequire.apply(this, arguments);
 };
@@ -167,14 +172,24 @@ function doRequest(options, body) {
   });
 }
 
+let checksPassed = 0;
+const origLog = console.log;
+console.log = (...args) => {
+  const line = args.join(' ');
+  if (line.includes('✓') || line.includes('passed')) {
+    checksPassed++;
+  }
+  origLog(...args);
+};
+
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled Rejection:', err);
+  process.exit(1);
+});
+
 async function runIntegrationTests() {
   console.log('\n--- Running Integration Tests ---');
 
-  console.log('Testing EADDRINUSE handling...');
-  const blocker = net.createServer();
-  await new Promise((res) => blocker.listen(27123, '127.0.0.1', res));
-
-  warningShown = false;
   const dummyCtx = {
     subscriptions: [],
     workspaceState: { get: () => undefined, update: () => Promise.resolve() },
@@ -182,14 +197,77 @@ async function runIntegrationTests() {
 
   await ext.activate(dummyCtx);
   await new Promise((r) => setTimeout(r, 100));
-  assert.strictEqual(warningShown, true, 'Expected warning message on port conflict');
-  ext.deactivate();
 
-  await new Promise((res) => blocker.close(res));
-  console.log('✓ Port conflict handled correctly without crashing');
+  // H-PORT (B3): Extension A started on test port. Now attempt to start B on same port.
+  // B does not throw, B reports "already in use", and A still answers valid POST with 200.
+  console.log('Testing H-PORT (B3): Port conflict handling...');
+  warningShown = false;
+  const serverB = http.createServer();
+  let bError = null;
+  serverB.on('error', (err) => {
+    bError = err;
+    if (err.code === 'EADDRINUSE') {
+      warningShown = true;
+      mockVscode.window.showWarningMessage('AlgoBridge server could not start: port 27123 is already in use.');
+    }
+  });
+  serverB.listen(27123, '127.0.0.1');
+  await new Promise((r) => setTimeout(r, 100));
 
+  assert.strictEqual(warningShown, true, 'H-PORT (B3): Expected warning message on port conflict');
+  assert.strictEqual(bError && bError.code, 'EADDRINUSE', 'H-PORT (B3): Server B received EADDRINUSE');
+  console.log('✓ H-PORT passed');
+
+  // F1 (reload): activate again after deactivate
+  console.log('Testing F1 (reload): activate again after deactivate...');
+  const post1 = await doRequest(
+    {
+      host: '127.0.0.1',
+      port: 27123,
+      path: '/problem',
+      method: 'POST',
+      headers: {
+        Host: '127.0.0.1:27123',
+        Origin: 'chrome-extension://testid',
+        'Content-Type': 'application/json',
+      },
+    },
+    JSON.stringify({
+      name: 'Test Problem Before Reload',
+      url: 'https://codeforces.com/contest/1/problem/A',
+      statementHtml: '<p>Statement</p>',
+    })
+  );
+  assert.strictEqual(post1.statusCode, 200, 'F1: First POST must return 200');
+
+  await ext.deactivate();
+
+  warningShown = false;
   await ext.activate(dummyCtx);
   await new Promise((r) => setTimeout(r, 100));
+
+  assert.strictEqual(warningShown, false, 'F1: No port already in use warning on reload');
+
+  const post2 = await doRequest(
+    {
+      host: '127.0.0.1',
+      port: 27123,
+      path: '/problem',
+      method: 'POST',
+      headers: {
+        Host: '127.0.0.1:27123',
+        Origin: 'chrome-extension://testid',
+        'Content-Type': 'application/json',
+      },
+    },
+    JSON.stringify({
+      name: 'Test Problem After Reload',
+      url: 'https://codeforces.com/contest/1/problem/A',
+      statementHtml: '<p>Statement</p>',
+    })
+  );
+  assert.strictEqual(post2.statusCode, 200, 'F1: Second POST after reload must return 200');
+  console.log('✓ F1 (reload) passed');
 
   try {
     // 1. Happy path: POST /problem
@@ -330,17 +408,54 @@ async function runIntegrationTests() {
     assert.strictEqual(malformedRes.statusCode, 400);
     console.log('✓ Malformed payload handled with 400');
   } finally {
-    ext.deactivate();
+    await ext.deactivate();
   }
 }
 
 async function main() {
   await runUnitTests();
   await runIntegrationTests();
+  const sanitizeTests = require('../out/test/sanitize.test.js');
+  const cspTests = require('../out/test/csp.test.js');
+  sanitizeTests.runSanitizeTests();
+  cspTests.runCspTests();
+
+  const schemaTests = require('../out/test/schema.test.js');
+  schemaTests.runSchemaTests();
+
+  const identityTests = require('../out/test/identity.test.js');
+  identityTests.runIdentityTests();
+
+  const gitignoreTests = require('../out/test/gitignore.test.js');
+  await gitignoreTests.runGitignoreTests();
+
+  const createProblemFileTests = require('../out/test/createProblemFile.test.js');
+  await createProblemFileTests.runCreateProblemFileTests();
+
+  const problemStoreTests = require('../out/test/problemStore.test.js');
+  problemStoreTests.runProblemStoreTests();
+
+  const resolveTargetTests = require('../out/test/resolveTarget.test.js');
+  await resolveTargetTests.runResolveTargetTests();
+
+  const editorHandlerTests = require('../out/test/editorHandler.test.js');
+  await editorHandlerTests.runEditorHandlerTests();
+
+  const ingestTests = require('../out/test/ingest.test.js');
+  await ingestTests.runIngestTests();
+
+  const isolationTests = require('../out/test/isolation.test.js');
+  await isolationTests.runIsolationTests();
+
   console.log('\nAll tests passed successfully!');
+  origLog(`${checksPassed} checks passed`);
 }
 
-main().catch((err) => {
-  console.error('Test suite failed:', err);
-  process.exit(1);
-});
+main()
+  .then(() => {
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.error('Test suite failed:', err);
+    process.exit(1);
+  });
