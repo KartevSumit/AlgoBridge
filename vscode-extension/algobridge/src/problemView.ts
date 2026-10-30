@@ -1,15 +1,25 @@
 import * as vscode from 'vscode';
+import {
+  sanitizeStatementHtml,
+  buildCsp,
+  generateNonce,
+  escapeHtml,
+} from './sanitize';
+
+export { sanitizeStatementHtml, buildCsp, generateNonce, escapeHtml };
 
 export interface ProblemPayload {
   name: string;
   url: string;
   statementHtml: string;
+  platform?: string;
+  contestId?: string;
+  index?: string;
 }
 
 export class ProblemViewProvider implements vscode.WebviewViewProvider {
   private view?: vscode.WebviewView;
   private currentProblem: ProblemPayload | null = null;
-  private htmlCache = new Map<string, string>();
   private isLoadingProblem = false;
 
   constructor(private context: vscode.ExtensionContext) {}
@@ -23,9 +33,11 @@ export class ProblemViewProvider implements vscode.WebviewViewProvider {
   }
 
   private emptyHtml(): string {
-    return `
-<!DOCTYPE html>
+    return `<!DOCTYPE html>
 <html>
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline';">
 <body style="
     background: var(--vscode-editor-background);
     color: var(--vscode-descriptionForeground);
@@ -54,7 +66,12 @@ export class ProblemViewProvider implements vscode.WebviewViewProvider {
   ) {
     this.view = view;
 
-    view.webview.options = { enableScripts: true };
+    view.webview.options = {
+      enableScripts: true,
+      localResourceRoots: [
+        vscode.Uri.joinPath(this.context.extensionUri, 'media'),
+      ],
+    };
 
     view.webview.html = this.emptyHtml();
 
@@ -76,9 +93,12 @@ export class ProblemViewProvider implements vscode.WebviewViewProvider {
   }
 
   private loadingHtml(): string {
-    return `
-<!DOCTYPE html>
+    return `<!DOCTYPE html>
 <html>
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline';">
+</head>
 <body style="
   background: var(--vscode-editor-background);
   color: var(--vscode-descriptionForeground);
@@ -117,6 +137,44 @@ export class ProblemViewProvider implements vscode.WebviewViewProvider {
 `;
   }
 
+  private fallbackHtml(cspSource: string, title: string, message: string): string {
+    let csp = `default-src 'none'; base-uri 'none'; style-src ${cspSource} 'unsafe-inline';`;
+    try {
+      const nonce = generateNonce();
+      csp = buildCsp(cspSource, nonce);
+    } catch {
+      csp = `default-src 'none'; base-uri 'none'; script-src 'none';`;
+    }
+
+    return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="${csp}">
+<style>
+body {
+  margin: 0;
+  padding: 16px;
+  background: var(--vscode-sideBar-background);
+  color: var(--vscode-editor-foreground);
+  font-family: var(--vscode-font-family);
+}
+h2 {
+  font-size: 16px;
+  color: var(--vscode-errorForeground, var(--vscode-editor-foreground));
+}
+p {
+  color: var(--vscode-descriptionForeground);
+}
+</style>
+</head>
+<body>
+  <h2>${escapeHtml(title)}</h2>
+  <p>${escapeHtml(message)}</p>
+</body>
+</html>`;
+  }
+
   private render() {
     if (!this.view || !this.currentProblem) return;
 
@@ -140,54 +198,82 @@ export class ProblemViewProvider implements vscode.WebviewViewProvider {
       )
     );
 
-    const key = this.currentProblem.url;
-    const cached = this.htmlCache.get(key);
-    if (cached) {
-      webview.html = cached;
-      this.isLoadingProblem = false;
-      return;
-    }
+    const html = this.buildHtml(
+      this.currentProblem,
+      webview,
+      {
+        katexCss: katexCss.toString(),
+        katexJs: katexJs.toString(),
+        katexAutoRenderJs: katexAutoRenderJs.toString(),
+      }
+    );
 
-    const html = this.buildHtml(this.currentProblem, {
-      katexCss: katexCss.toString(),
-      katexJs: katexJs.toString(),
-      katexAutoRenderJs: katexAutoRenderJs.toString(),
-    });
-
-    this.htmlCache.set(key, html);
     webview.html = html;
     this.isLoadingProblem = false;
   }
 
   buildHtml(
-    problem: ProblemPayload,
-    assets: {
-      katexCss: string;
-      katexJs: string;
-      katexAutoRenderJs: string;
-    }
+    problem: ProblemPayload | null | undefined,
+    webviewOrAssets: { cspSource: string } | { katexCss: string; katexJs: string; katexAutoRenderJs: string },
+    maybeAssets?: { katexCss: string; katexJs: string; katexAutoRenderJs: string }
   ): string {
-    return `
-<!DOCTYPE html>
+    let cspSource = 'vscode-webview:';
+    let assets = { katexCss: '', katexJs: '', katexAutoRenderJs: '' };
+
+    if (maybeAssets) {
+      cspSource = (webviewOrAssets as { cspSource: string }).cspSource;
+      assets = maybeAssets;
+    } else if ('cspSource' in webviewOrAssets) {
+      cspSource = webviewOrAssets.cspSource;
+    } else {
+      assets = webviewOrAssets;
+    }
+
+    if (!problem) {
+      return this.fallbackHtml(cspSource, 'No Problem', 'No problem is currently selected.');
+    }
+
+    let nonce: string;
+    let safeStatement: string;
+    let csp: string;
+
+    try {
+      nonce = generateNonce();
+      safeStatement = sanitizeStatementHtml(problem.statementHtml);
+      if (!safeStatement) {
+        safeStatement = '<p>No statement available</p>';
+      }
+      csp = buildCsp(cspSource, nonce);
+    } catch (err) {
+      return this.fallbackHtml(cspSource, 'Rendering Error', 'Failed to render problem statement safely.');
+    }
+
+    const safeTitle = escapeHtml(problem.name || 'Untitled Problem');
+    const safeUrl = escapeHtml(problem.url || '#');
+
+    return `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
-<link rel="stylesheet" href="${assets.katexCss}">
+<meta http-equiv="Content-Security-Policy" content="${csp}">
+<link rel="stylesheet" href="${escapeHtml(assets.katexCss)}">
 
-<script src="${assets.katexJs}"></script>
-<script src="${assets.katexAutoRenderJs}"></script>
-<script>
+<script nonce="${nonce}" src="${escapeHtml(assets.katexJs)}"></script>
+<script nonce="${nonce}" src="${escapeHtml(assets.katexAutoRenderJs)}"></script>
+<script nonce="${nonce}">
   document.addEventListener("DOMContentLoaded", () => {
     try {
-      renderMathInElement(document.getElementById("content"), {
-        delimiters: [
-          { left: "$$", right: "$$", display: true },
-          { left: "$", right: "$", display: false },
-          { left: "\\(", right: "\\)", display: false },
-          { left: "\\[", right: "\\]", display: true }
-        ],
-        throwOnError: false
-      });
+      if (typeof renderMathInElement === 'function') {
+        renderMathInElement(document.getElementById("content"), {
+          delimiters: [
+            { left: "$$", right: "$$", display: true },
+            { left: "$", right: "$", display: false },
+            { left: "\\(", right: "\\)", display: false },
+            { left: "\\[", right: "\\]", display: true }
+          ],
+          throwOnError: false
+        });
+      }
     } catch (e) {
       console.error("KaTeX render failed", e);
     }
@@ -198,34 +284,33 @@ export class ProblemViewProvider implements vscode.WebviewViewProvider {
     if (content) content.style.display = "block";
 
     function updateHighlight(target, add) {
-        while (target && target !== document) {
-            if (target.classList && target.classList.contains('test-example-line')) {
-                for (const cls of target.classList) {
-                    if (cls.startsWith('test-example-line-')) {
-                        const suffix = cls.substring('test-example-line-'.length);
-                        if (suffix !== 'even' && suffix !== 'odd' && suffix !== '0') {
-                            const partners = document.getElementsByClassName(cls);
-                            for (let i = 0; i < partners.length; i++) {
-                                if (add) {
-                                    partners[i].classList.add('test-case-hover');
-                                } else {
-                                    partners[i].classList.remove('test-case-hover');
-                                }
-                            }
-                        }
-                    }
+      while (target && target !== document) {
+        if (target.classList && target.classList.contains('test-example-line')) {
+          for (const cls of target.classList) {
+            if (cls.startsWith('test-example-line-')) {
+              const suffix = cls.substring('test-example-line-'.length);
+              if (suffix !== 'even' && suffix !== 'odd' && suffix !== '0') {
+                const partners = document.getElementsByClassName(cls);
+                for (let i = 0; i < partners.length; i++) {
+                  if (add) {
+                    partners[i].classList.add('test-case-hover');
+                  } else {
+                    partners[i].classList.remove('test-case-hover');
+                  }
                 }
-                return;
+              }
             }
-            target = target.parentElement;
+          }
+          return;
         }
+        target = target.parentElement;
+      }
     }
 
     document.addEventListener('mouseover', (e) => updateHighlight(e.target, true));
     document.addEventListener('mouseout', (e) => updateHighlight(e.target, false));
   });
 </script>
-
 
 <style>
 /* ---------- Theme Variables ---------- */
@@ -258,6 +343,7 @@ body {
   z-index: 10;
   height: 36px;
   background: var(--bg);
+  border-bottom: 1px solid var(--border);
   border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
   padding: 6px 10px;
   box-sizing: border-box;
@@ -278,7 +364,7 @@ body {
 .problemName:hover {
   color: var(--link-hover);
   text-decoration: underline;
-  }
+}
 
 .section-title {
   margin: 14px 0 6px;
@@ -290,15 +376,12 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
-  
+
 /* ---------- Content ---------- */
 main {
   padding: 10px 12px 12px;
   max-width: 900px;
   margin: 0 auto;
-}
-
-main {
   animation: fadeIn 0.15s ease-out;
 }
 
@@ -313,8 +396,6 @@ main {
   }
 }
 
-
-/* ---------- Text ---------- */
 p {
   margin: 10px 0px;
 }
@@ -332,13 +413,14 @@ b, strong {
 }
 
 a {
+  color: var(--link);
   transition: color 0.15s ease;
 }
-
 
 /* ---------- Code ---------- */
 pre {
   background: var(--code-bg);
+  border: 1px solid var(--border);
   border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
   padding: 8px 10px;
   border-radius: 4px;
@@ -348,6 +430,7 @@ pre {
 }
 
 pre:hover {
+  background: var(--code-bg);
   background: color-mix(in srgb, var(--code-bg) 85%, transparent);
 }
 
@@ -358,12 +441,10 @@ code {
   font-family: var(--vscode-editor-font-family);
 }
 
-/
-
 /* ---------- KateX ---------- */
-
 .katex {
   font-size: 1.12em;
+  text-rendering: optimizeLegibility;
 }
 
 .katex-inline {
@@ -379,6 +460,9 @@ code {
   padding: 0.4em 0.6em;
   overflow-x: auto;
   overflow-y: visible;
+  background: var(--code-bg);
+  background: color-mix(in srgb, var(--code-bg) 92%, transparent);
+  border-radius: 6px;
 }
 
 .katex-display > .katex {
@@ -393,17 +477,7 @@ code {
   font-weight: 500;
 }
 
-.katex {
-  text-rendering: optimizeLegibility;
-}
-
-.katex-display {
-  background: color-mix(in srgb, var(--code-bg) 92%, transparent);
-  border-radius: 6px;
-}
-
 /* ---------- Sample Tests ---------- */
-
 .sample-tests {
   margin-top: 18px;
 }
@@ -424,16 +498,19 @@ code {
 .sample-test .input,
 .sample-test .output {
   background: var(--code-bg);
+  border: 1px solid var(--border);
   border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
   border-radius: 6px;
   overflow: hidden;
 }
 
 .sample-test .input {
+  background: var(--code-bg);
   background: color-mix(in srgb, var(--code-bg) 92%, transparent);
 }
 
 .sample-test .output {
+  background: var(--code-bg);
   background: color-mix(in srgb, var(--code-bg) 88%, transparent);
 }
 
@@ -443,58 +520,6 @@ code {
   justify-content: space-between;
   padding: 6px 8px;
   font-size: 13px;
-  font-weight: 600;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg);
-}
-
-.sample-test pre {
-  margin: 0;
-  padding: 8px 10px;
-  background: transparent;
-  border: none;
-  font-size: 14px;
-  line-height: 1.45;
-}
-
-.sample-test pre div {
-  display: block;
-}
-
-/* ---------- Sample Tests ---------- */
-
-.sample-tests {
-  margin-top: 18px;
-}
-
-.sample-test {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-top: 10px;
-}
-
-/* Stack on narrow panels */
-@media (max-width: 700px) {
-  .sample-test {
-    grid-template-columns: 1fr;
-  }
-}
-
-.sample-test .input,
-.sample-test .output {
-  background: var(--code-bg);
-  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.sample-test .title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 8px;
-  font-size: 14px;
   font-weight: 600;
   border-bottom: 1px solid var(--border);
   background: var(--bg);
@@ -514,7 +539,6 @@ code {
 }
 
 /* ---------- Loading ---------- */
-
 .skeleton {
   background: linear-gradient(
     90deg,
@@ -538,8 +562,8 @@ code {
 }
 
 /* ---------- Alternating Test Case Rows ---------- */
-
 .test-example-line-even {
+  background-color: var(--code-bg);
   background-color: color-mix(in srgb, var(--fg) 8%, transparent);
   margin: 0;
   padding: 0 7px;
@@ -547,6 +571,7 @@ code {
 }
 
 .test-example-line-odd {
+  background-color: transparent;
   background-color: color-mix(in srgb, var(--fg) 1%, transparent);
   margin: 0;
   padding: 0 7px;
@@ -554,8 +579,17 @@ code {
 }
 
 .test-case-hover {
-    background-color: var(--vscode-editor-hoverHighlightBackground) !important;
-    cursor: pointer;
+  background-color: var(--vscode-editor-hoverHighlightBackground) !important;
+  cursor: pointer;
+}
+
+/* ---------- High Contrast Mode ---------- */
+body.vscode-high-contrast .test-example-line-even,
+body.vscode-high-contrast .test-example-line-odd,
+body.vscode-high-contrast-light .test-example-line-even,
+body.vscode-high-contrast-light .test-example-line-odd {
+  background-color: transparent !important;
+  border-bottom: 1px solid var(--vscode-contrastBorder, var(--vscode-editorGroup-border));
 }
 
 </style>
@@ -563,8 +597,8 @@ code {
 
 <body>
   <header class="heading">
-    <a class="problemName" href="${problem.url}">
-      ${problem.name}
+    <a class="problemName" href="${safeUrl}">
+      ${safeTitle}
     </a>
   </header>
 
@@ -577,12 +611,11 @@ code {
 
   <main>
     <div id="content" style="display:none">
-      ${problem.statementHtml}
+      ${safeStatement}
     </div>
   </main>
 </body>
 
-</html>
-`;
+</html>`;
   }
 }
